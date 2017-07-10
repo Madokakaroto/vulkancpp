@@ -26,6 +26,8 @@
 
 namespace vk
 {
+	struct null_type {};
+
 	/// platform
 	struct platform_windows 
 	{
@@ -94,13 +96,17 @@ namespace vk
 		}
 	}
 
-	template <typename T>
-	class global_friends;
+	template <typename T, typename Base = null_type>
+	class extension;
+
+	template <typename ... Exts>
+	class instance;
 
 	// vulkan library
 	class global
 	{
-		template <typename> friend class global_friends;
+		template <typename, typename> friend class extension;
+		template <typename ...> friend class instance;
 
 	public:
 		global(global const&) = delete;
@@ -231,72 +237,40 @@ namespace vk
 		VULKAN_DECLARE_FUNCTION(vkCreateInstance);
 	};
 
-	template <typename ... Types>
-	struct typelist2inheritance;
+	// class hierarchy generation
+	template <typename ... Exts>
+	struct generate_extensions_hierarchy;
 
-	template <>
-	struct typelist2inheritance<>
+	template <typename T, typename ... Rests>
+	struct generate_extensions_hierarchy<T, Rests...>
 	{
-		struct empty_layer
-		{
-			template <typename ... Args>
-			empty_layer(Args&& ... args)
-			{}
-		};
-
-		using type = empty_layer;
+		using type = extension<T, typename generate_extensions_hierarchy<Rests...>::type>;
 	};
 
 	template <typename T>
-	struct typelist2inheritance<T>
+	struct generate_extensions_hierarchy<T>
 	{
-		struct empty_layer : T
-		{
-			template <typename ... Args>
-			empty_layer(Args&& ... args)
-				: T(std::forward<Args>(args)...)
-			{}
-		};
-
-		using type = empty_layer;
+		using type = extension<T, null_type>;
 	};
 
-	template <typename T, typename ... Rests>
-	struct typelist2inheritance<T, Rests...>
-	{
-		using recursive_t = typename typelist2inheritance<Rests...>::type;
-		struct empty_layer : T, recursive_t
-		{
-			template <typename ... Args>
-			empty_layer(Args&& ... args)
-				: T(std::forward<Args>(args)...)
-				, recursive_t(std::forward<Args>(args)...)
-			{}
-		};
-
-		using type = empty_layer;
-	};
-
-	template <typename ... Types>
-	using typelist2inheritance_t = typename typelist2inheritance<Types...>::type;
+	template <typename ... Exts>
+	using generate_extensions_hierarchy_t = typename generate_extensions_hierarchy<Exts...>::type;
 
 	// instance 
-	struct instance_core_tag;
+	struct instance_core_t{};
 
 	template <>
-	class global_friends<instance_core_tag>
+	class extension<instance_core_t>
 	{
 	protected:
-		global_friends(global_friends const&) = delete;
-		global_friends& operator=(global_friends const&) = delete;
-		global_friends(global_friends&&) = default;
-		global_friends& operator=(global_friends&&) = default;
+		extension(extension const&) = delete;
+		extension& operator=(extension const&) = delete;
+		extension(extension&&) = default;
+		extension& operator=(extension&&) = default;
 
-		global_friends(global const& global, instance_param const& param, std::vector<char const*> const& extensions)
-			: param_(param)
-			, instance_(nullptr)
+		extension(global const& global, VkInstance instance)
+			: instance_(instance)
 		{
-			auto instance = global.create_instance(param, extensions);
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkEnumeratePhysicalDevices);
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkDestroyInstance);
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkEnumerateDeviceExtensionProperties);
@@ -307,10 +281,9 @@ namespace vk
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceFormatProperties);
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkCreateDevice);
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkGetDeviceProcAddr);
-			instance_ = instance;
 		}
 
-		~global_friends()
+		~extension()
 		{
 			if (nullptr == instance_)
 			{
@@ -339,47 +312,53 @@ namespace vk
 		VULKAN_DECLARE_FUNCTION(vkCreateDevice);
 		VULKAN_DECLARE_FUNCTION(vkGetDeviceProcAddr);
 	};
-
-	using instance_core = global_friends<instance_core_tag>;
 	
 	template <typename ... Exts>
 	class instance 
-		: public instance_core
-		, public typelist2inheritance_t<Exts...>
+		: public generate_extensions_hierarchy_t<Exts..., instance_core_t>
 	{
-		using extensions = typelist2inheritance_t<Exts...>;
+		using instance_with_extensions = generate_extensions_hierarchy_t<Exts..., instance_core_t>;
 
 	public:
 		instance(global const& global, instance_param const& param)
-			: instance_core(global, param, { Exts::name() ... })
-			, extensions(global, get_instance())
+			: instance_with_extensions(global, global.create_instance(param, { Exts::name() ... }))
+			, param_(param)
 		{}
 	
+		instance_param const& get_param() const noexcept
+		{
+			return param_;
+		}
+
 	private:
-	
+		instance_param const param_;
 	};
 
 	// extensions
-	struct KHR_surface_tag;
-	template <>
-	class global_friends<KHR_surface_tag>
+	struct KHR_surface_t 
+	{
+		static char const* name() noexcept
+		{
+			return VK_KHR_SURFACE_EXTENSION_NAME;
+		}
+	};
+
+	template <typename Base>
+	class extension<KHR_surface_t, Base> : public Base
 	{
 	protected:
-		global_friends(global_friends const&) = delete;
-		global_friends& operator=(global_friends const&) = delete;
+		extension(extension const&) = delete;
+		extension& operator=(extension const&) = delete;
 
-		global_friends(global const& global, VkInstance instance)
+		extension(global const& global, VkInstance instance)
+			: Base(global, instance)
 		{
+			assert(this->get_instance() == instance);
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR);
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkDestroySurfaceKHR);
-		}
-
-		static char const* name() noexcept
-		{
-			return VK_KHR_SURFACE_EXTENSION_NAME;
 		}
 
 	private:
@@ -390,32 +369,31 @@ namespace vk
 		VULKAN_DECLARE_FUNCTION(vkDestroySurfaceKHR);
 	};
 
-	using KHR_surface = global_friends<KHR_surface_tag>;
-
-
 #ifdef VK_USE_PLATFORM_WIN32_KHR
-	struct KHR_surface_win32_tag;
-	template <>
-	class global_friends<KHR_surface_win32_tag>
+	struct KHR_surface_win32_t
 	{
-	protected:
-		global_friends(global_friends const&) = delete;
-		global_friends& operator=(global_friends const&) = delete;
-
-		global_friends(global const& global, VkInstance instance)
-		{
-			VULKAN_LOAD_INSTNACE_FUNCTION(vkCreateWin32SurfaceKHR);
-		}
-
 		static char const* name() noexcept
 		{
 			return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
+		}
+	};
+
+	template <typename Base>
+	class extension<KHR_surface_win32_t, Base> : public Base
+	{
+	protected:
+		extension(extension const&) = delete;
+		extension& operator=(extension const&) = delete;
+
+		extension(global const& global, VkInstance instance)
+			: Base(global, instance)
+		{
+			assert(this->get_instance() == instance);
+			VULKAN_LOAD_INSTNACE_FUNCTION(vkCreateWin32SurfaceKHR);
 		}
 
 	private:
 		VULKAN_DECLARE_FUNCTION(vkCreateWin32SurfaceKHR);
 	};
-
-	using KHR_surface_win32 = global_friends<KHR_surface_win32_tag>;
 #endif
 }

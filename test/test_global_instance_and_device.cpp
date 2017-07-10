@@ -3,7 +3,7 @@
 void test_global_instance()
 {
 	using namespace std::string_literals;
-	using instance_t = vk::instance<vk::KHR_surface_win32, vk::KHR_surface>;
+	using instance_t = vk::instance<vk::KHR_surface_win32_t, vk::KHR_surface_t>;
 
 	auto& global = vk::global::get();
 
