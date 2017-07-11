@@ -3,8 +3,6 @@
 void test_global_instance()
 {
 	using namespace std::string_literals;
-	using instance_t = vk::instance<vk::KHR_surface_win32_t, vk::KHR_surface_t>;
-
 	auto& global = vk::global::get();
 
 	vk::instance_param param = 
@@ -15,7 +13,16 @@ void test_global_instance()
 		VK_MAKE_VERSION(1, 0, 0)
 	};
 
-	instance_t instance{ global, param };
+	auto instance = global.create_instance(param, vk::KHR_surface_win32_ext, vk::KHR_surface_ext);
+	auto surface = instance.create_surface(nullptr, nullptr);
+
+	auto physical_device = instance.select_physical_device(
+		[&instance](auto physical_device) 
+	{ 
+		return true; 
+	}, vk::KHR_swapchain_ext);
+
+
 }
 
 int main()

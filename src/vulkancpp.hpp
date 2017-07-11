@@ -68,10 +68,15 @@ namespace vk
 #define VULKAN_LOAD_INSTNACE_FUNCTION(name) global.load_func(VULKAN_STR2(name), name, instance)
 #endif
 
+#ifndef VULKAN_LOAD_DEVICE_FUNCTION
+#define VULKAN_LOAD_DEVICE_FUNCTION(name) instance.load_func(VULKAN_STR2(name), name, device)
+#endif
+
 #ifndef VULKAN_EXPORT_FUNCTION
 #define VULKAN_EXPORT_FUNCTION(name) export_func(VULKAN_STR2(name), name)
 #endif
 
+	// some type defines
 	struct instance_param
 	{
 		std::string				app_name;
@@ -81,32 +86,127 @@ namespace vk
 		uint32_t					api_version;
 	};
 
+	using physical_device_features_t = VkPhysicalDeviceFeatures;
+	using physical_device_properties_t = VkPhysicalDeviceProperties;
+	using queue_family_properites_t = VkQueueFamilyProperties;
+	using extension_properties_t = VkExtensionProperties;
+
+	template <typename ... Exts>
+	class physical_device
+	{
+		template <typename, typename>
+		friend class instance_extension;
+
+		template <typename, typename>
+		friend class device_extension;
+
+	protected:
+		physical_device(VkPhysicalDevice device)
+			: device_(device)
+		{}
+
+		VkPhysicalDevice get_device() const noexcept
+		{
+			return device_;
+		}
+
+	public:
+		physical_device(physical_device const&) = default;
+		physical_device& operator= (physical_device const&) = default;
+		physical_device(physical_device&&) = default;
+		physical_device& operator= (physical_device&&) = default;
+
+		static std::vector<char const*> extensions()
+		{
+			return{ Exts::name()... };
+		}
+
+	private:
+		VkPhysicalDevice				device_;
+	};
+
 	namespace detail
 	{
-		template <typename PFN_type>
-		void load_funtion(PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr,
-			std::string const& proc_name, PFN_type& function, VkInstance instance = nullptr)
+		template <typename PFN_vkGetProcAddr, typename PFN_type, typename VkInstanceOrDevice>
+		inline void load_funtion(PFN_vkGetProcAddr vkGetProcAddr, std::string const& proc_name, 
+			PFN_type& function, VkInstanceOrDevice instance_or_device = nullptr)
 		{
-			assert(nullptr != vkGetInstanceProcAddr);
-			auto proc_addr = vkGetInstanceProcAddr(instance, proc_name.c_str());
+			assert(nullptr != vkGetProcAddr);
+			auto proc_addr = vkGetProcAddr(instance_or_device, proc_name.c_str());
 			if (nullptr == proc_addr)
 				throw std::runtime_error{ "Failed to load " + proc_name + " from vulkan!" };
 
 			function = reinterpret_cast<PFN_type>(proc_addr);
 		}
+
+		inline bool is_extensions_satisfied(
+			std::vector<char const*> const& desired,
+			std::vector<extension_properties_t> const& available)
+		{
+			return std::all_of(desired.cbegin(), desired.cend(), [&available](auto one_desired)
+			{
+				return std::find_if(available.cbegin(), available.cend(),
+					[one_desired](auto const& one_available)
+				{
+					return std::strcmp(one_desired, one_available.extensionName) == 0;
+				}) != available.cend();
+			});
+		}
 	}
 
+	// forward declaration
 	template <typename T, typename Base = null_type>
-	class extension;
+	class instance_extension;
 
 	template <typename ... Exts>
 	class instance;
 
+	template <typename T, typename Base = null_type>
+	class device_extension;
+
+	template <typename ... Exts>
+	class device;
+
+	// raii object
+	template <typename T>
+	class object
+	{
+	public:
+		template <typename F>
+		object(T object, F&& deleter)
+			: object_(object)
+			, deleter_(std::forward<F>(deleter))
+		{
+		}
+
+		~object()
+		{
+			deleter_(object_);
+		}
+
+		object(object const&) = delete;
+		object(object&&) = default;
+		object& operator= (object const&) = delete;
+		object& operator= (object&&) = default;
+
+		T get_object() const noexcept
+		{
+			return object_;
+		}
+
+	private:
+		T						object_;
+		std::function<void(T)>	deleter_;
+	};
+
 	// vulkan library
 	class global
 	{
-		template <typename, typename> friend class extension;
-		template <typename ...> friend class instance;
+		template <typename, typename> 
+		friend class instance_extension;
+
+		template <typename ...> 
+		friend class instance;
 
 	public:
 		global(global const&) = delete;
@@ -116,6 +216,13 @@ namespace vk
 		{
 			static global instance;
 			return instance;
+		}
+
+		template <typename ... Exts>
+		auto create_instance(instance_param const& param, Exts...) const
+		{
+			using instance_t = instance<Exts...>;
+			return instance_t{ *this, param };
 		}
 
 	protected:
@@ -131,7 +238,7 @@ namespace vk
 		/// get the extension supported by vulkan
 		auto get_available_extension() const
 		{
-			std::vector<VkExtensionProperties> extension_properties;
+			std::vector<extension_properties_t> extension_properties;
 			uint32_t extension_count{ 0 };
 			vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
 			if (extension_count > 0)
@@ -143,22 +250,8 @@ namespace vk
 			return extension_properties;
 		}
 
-		bool is_extensions_satisfied(
-			std::vector<char const*> const& desired, 
-			std::vector<VkExtensionProperties> const& available) const
-		{
-			return std::all_of(desired.cbegin(), desired.cend(), [&available](auto one_desired)
-			{
-				return std::find_if(available.cbegin(), available.cend(), 
-					[one_desired](auto const& one_available)
-				{
-					return std::strcmp(one_desired, one_available.extensionName) == 0;
-				}) != available.cend();
-			});
-		}
-
 		/// create the vulkan instance
-		VkInstance create_instance(
+		VkInstance create_instance_handle(
 			instance_param const& param,
 			std::vector<char const*> const& extensions) const
 		{
@@ -166,7 +259,7 @@ namespace vk
 			auto available_extensions = get_available_extension();
 
 			// check if all desired extensions are among the available extensions
-			if (!is_extensions_satisfied(extensions, available_extensions))
+			if (!detail::is_extensions_satisfied(extensions, available_extensions))
 				throw std::runtime_error{ "Extensions are not satisfired!" };
 
 			// create the vulkan instance
@@ -181,11 +274,6 @@ namespace vk
 				param.engine_version,						// uint32_t					engineVersion
 				param.api_version							// uint32_t					apiVersion
 			};
-
-			/// transform the extension from string vector to c-sytle string vector
-			//std::vector<char const*> extensions;
-			//std::transform(param.extensions.begin(), param.extensions.end(), std::back_inserter(extensions),
-			//	[](auto const& extension_string) { return extension_string.c_str(); });
 
 			/// fill the VkInstanceCreateInfo struct
 			VkInstanceCreateInfo create_info = 
@@ -244,13 +332,13 @@ namespace vk
 	template <typename T, typename ... Rests>
 	struct generate_extensions_hierarchy<T, Rests...>
 	{
-		using type = extension<T, typename generate_extensions_hierarchy<Rests...>::type>;
+		using type = instance_extension<T, typename generate_extensions_hierarchy<Rests...>::type>;
 	};
 
 	template <typename T>
 	struct generate_extensions_hierarchy<T>
 	{
-		using type = extension<T, null_type>;
+		using type = instance_extension<T, null_type>;
 	};
 
 	template <typename ... Exts>
@@ -260,15 +348,21 @@ namespace vk
 	struct instance_core_t{};
 
 	template <>
-	class extension<instance_core_t>
+	class instance_extension<instance_core_t>
 	{
-	protected:
-		extension(extension const&) = delete;
-		extension& operator=(extension const&) = delete;
-		extension(extension&&) = default;
-		extension& operator=(extension&&) = default;
+		template <typename, typename>
+		friend class device_extension;
 
-		extension(global const& global, VkInstance instance)
+		template <typename...>
+		friend class device;
+
+	protected:
+		instance_extension(instance_extension const&) = delete;
+		instance_extension& operator=(instance_extension const&) = delete;
+		instance_extension(instance_extension&&) = default;
+		instance_extension& operator=(instance_extension&&) = default;
+
+		instance_extension(global const& global, VkInstance instance)
 			: instance_(instance)
 		{
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkEnumeratePhysicalDevices);
@@ -283,12 +377,10 @@ namespace vk
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkGetDeviceProcAddr);
 		}
 
-		~extension()
+		~instance_extension()
 		{
-			if (nullptr == instance_)
-			{
+			if (nullptr != instance_)
 				vkDestroyInstance(instance_, nullptr);
-			}
 		}
 
 		VkInstance get_instance() const noexcept
@@ -296,8 +388,90 @@ namespace vk
 			return instance_;
 		}
 
+		auto enumerate_physical_devices() const
+		{
+			uint32_t device_count;
+			vkEnumeratePhysicalDevices(instance_, &device_count, nullptr);
+
+			std::vector<VkPhysicalDevice> physical_devices{ device_count };
+			vkEnumeratePhysicalDevices(instance_, &device_count, physical_devices.data());
+
+			return physical_devices;
+		}
+
+		template <typename PFN_type>
+		void load_function(std::string const& proc_name, PFN_type& function, VkDevice device) const
+		{
+			detail::load_funtion(vkGetDeviceProcAddr, proc_name, function, device);
+		}
+
+		auto enumerate_device_extensions(VkPhysicalDevice device) const
+		{
+			uint32_t extension_count{ 0 };
+			vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
+			std::vector<extension_properties_t> extensions{ extension_count };
+			vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, extensions.data());
+			return extensions;
+		}
+
+	public:
+		template <typename PhysicalDevice>
+		auto get_physical_device_features(PhysicalDevice const& device) const
+		{
+			physical_device_features_t features;
+			vkGetPhysicalDeviceFeatures(device.get_device(), &features);
+			return features;
+		}
+
+		template <typename PhysicalDevice>
+		auto get_physical_device_properties(PhysicalDevice const& device) const
+		{
+			physical_device_properties_t properties;
+			vkGetPhysicalDeviceProperties(device.get_device(), &properties);
+			return properties;
+		}
+
+		template <typename PhysicalDevice>
+		auto enumerate_queue_family_properties(PhysicalDevice const& device) const
+		{
+			uint32_t queue_family_count{ 0 };
+			vkGetPhysicalDeviceQueueFamilyProperties(device.get_device(), &queue_family_count, nullptr);
+			std::vector<queue_family_properites_t> properties{ queue_family_count };
+			vkGetPhysicalDeviceQueueFamilyProperties(device.get_device(), &queue_family_count, properties.data());
+			return properties;
+		}
+
+		template <typename PhysicalDevice>
+		auto enumerate_device_extensions(PhysicalDevice const& device) const
+		{
+			return enumerate_device_extensions(device.get_device());
+		}
+
+		template <typename Filter, typename ... Exts>
+		auto select_physical_device(Filter&& filter, Exts ...) const
+		{
+			using physical_device_t = physical_device<Exts...>;
+
+			auto all_physical_devices = enumerate_physical_devices();
+			auto itr = std::find_if(all_physical_devices.begin(), all_physical_devices.end(), 
+				[filter=std::forward<Filter>(filter), this](auto physical_device)
+			{
+				auto extensions = enumerate_device_extensions(physical_device);
+				auto desired_extensions = physical_device_t::extensions();
+
+				if (!detail::is_extensions_satisfied(desired_extensions, extensions))
+					return false;
+
+				return filter(physical_device);
+			});
+
+			if (all_physical_devices.end() == itr)
+				throw std::runtime_error{ "Cannot select an appropriate physical device!" };
+
+			return physical_device_t{ *itr };
+		}
+
 	private:
-		instance_param		param_;			// parametres to create vulkan instance
 		VkInstance			instance_;		// instance object
 
 		// instance level functions
@@ -320,11 +494,16 @@ namespace vk
 		using instance_with_extensions = generate_extensions_hierarchy_t<Exts..., instance_core_t>;
 
 	public:
+		instance(instance const&) = delete;
+		instance& operator=(instance const&) = delete;
+		instance(instance&&) = default;
+		instance& operator=(instance&&) = default;
+
 		instance(global const& global, instance_param const& param)
-			: instance_with_extensions(global, global.create_instance(param, { Exts::name() ... }))
+			: instance_with_extensions(global, global.create_instance_handle(param, { Exts::name() ... }))
 			, param_(param)
 		{}
-	
+
 		instance_param const& get_param() const noexcept
 		{
 			return param_;
@@ -334,23 +513,28 @@ namespace vk
 		instance_param const param_;
 	};
 
-	// extensions
-	struct KHR_surface_t 
+	// surface
+	using KHR_surface_t = object<VkSurfaceKHR>;
+
+	// instance extensions
+	constexpr struct KHR_surface_ext_t
 	{
 		static char const* name() noexcept
 		{
 			return VK_KHR_SURFACE_EXTENSION_NAME;
 		}
-	};
+	} KHR_surface_ext;
 
 	template <typename Base>
-	class extension<KHR_surface_t, Base> : public Base
+	class instance_extension<KHR_surface_ext_t, Base> : public Base
 	{
 	protected:
-		extension(extension const&) = delete;
-		extension& operator=(extension const&) = delete;
+		instance_extension(instance_extension const&) = delete;
+		instance_extension& operator=(instance_extension const&) = delete;
+		instance_extension(instance_extension&&) = default;
+		instance_extension& operator=(instance_extension&&) = default;
 
-		extension(global const& global, VkInstance instance)
+		instance_extension(global const& global, VkInstance instance)
 			: Base(global, instance)
 		{
 			assert(this->get_instance() == instance);
@@ -359,6 +543,12 @@ namespace vk
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkDestroySurfaceKHR);
+		}
+
+		void destory_surface(VkSurfaceKHR surface) const
+		{
+			if(nullptr != surface)
+				vkDestroySurfaceKHR(this->get_instance(), surface, nullptr);
 		}
 
 	private:
@@ -370,30 +560,276 @@ namespace vk
 	};
 
 #ifdef VK_USE_PLATFORM_WIN32_KHR
-	struct KHR_surface_win32_t
+	constexpr struct KHR_surface_win32_ext_t
 	{
 		static char const* name() noexcept
 		{
 			return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
 		}
-	};
+	} KHR_surface_win32_ext;
 
 	template <typename Base>
-	class extension<KHR_surface_win32_t, Base> : public Base
+	class instance_extension<KHR_surface_win32_ext_t, Base> : public Base
 	{
 	protected:
-		extension(extension const&) = delete;
-		extension& operator=(extension const&) = delete;
+		instance_extension(instance_extension const&) = delete;
+		instance_extension& operator=(instance_extension const&) = delete;
+		instance_extension(instance_extension&&) = default;
+		instance_extension& operator=(instance_extension&&) = default;
 
-		extension(global const& global, VkInstance instance)
+		instance_extension(global const& global, VkInstance instance)
 			: Base(global, instance)
 		{
 			assert(this->get_instance() == instance);
 			VULKAN_LOAD_INSTNACE_FUNCTION(vkCreateWin32SurfaceKHR);
 		}
 
+	public:
+		auto create_surface(HINSTANCE app_instance, HWND window)
+		{
+			VkWin32SurfaceCreateInfoKHR create_info = 
+			{
+				VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,			// VkStructureType                 sType
+				nullptr,												// const void*					pNext
+				0,													// VkWin32SurfaceCreateFlagsKHR    flags
+				app_instance,											// HINSTANCE                       hinstance
+				window												// HWND                            hwnd
+			};
+
+			VkSurfaceKHR surface;
+			vkCreateWin32SurfaceKHR(this->get_instance(), &create_info, nullptr, &surface);
+			return KHR_surface_t{ surface, [this](VkSurfaceKHR surface) { this->destory_surface(surface); } };
+		}
+
 	private:
 		VULKAN_DECLARE_FUNCTION(vkCreateWin32SurfaceKHR);
 	};
 #endif
+
+	// device extensions
+	struct device_core_t{};
+
+	template <>
+	class device_extension<device_core_t>
+	{
+	protected:
+		template <typename Instance>
+		device_extension(Instance const& instance, VkDevice device)
+			: device_(device)
+		{
+			VULKAN_LOAD_DEVICE_FUNCTION(vkGetDeviceQueue);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDeviceWaitIdle);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyDevice);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateBuffer);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkGetBufferMemoryRequirements);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkAllocateMemory);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkBindBufferMemory);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdPipelineBarrier);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateImage);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkGetImageMemoryRequirements);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkBindImageMemory);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateImageView);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkMapMemory);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkFlushMappedMemoryRanges);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkUnmapMemory);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdCopyBuffer);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdCopyBufferToImage);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdCopyImageToBuffer);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkBeginCommandBuffer);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkEndCommandBuffer);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkQueueSubmit);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyImageView);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyImage);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyBuffer);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkFreeMemory);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateCommandPool);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkAllocateCommandBuffers);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateSemaphore);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateFence);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkWaitForFences);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkResetFences);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyFence);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroySemaphore);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkResetCommandBuffer);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkFreeCommandBuffers);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkResetCommandPool);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyCommandPool);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateBufferView);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyBufferView);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkQueueWaitIdle);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateSampler);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateDescriptorSetLayout);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateDescriptorPool);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkAllocateDescriptorSets);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkUpdateDescriptorSets);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdBindDescriptorSets);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkFreeDescriptorSets);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkResetDescriptorPool);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyDescriptorPool);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyDescriptorSetLayout);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroySampler);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateRenderPass);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateFramebuffer);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyFramebuffer);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyRenderPass);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdBeginRenderPass);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdNextSubpass);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdEndRenderPass);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreatePipelineCache);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkGetPipelineCacheData);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkMergePipelineCaches);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyPipelineCache);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateGraphicsPipelines);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateComputePipelines);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyPipeline);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyEvent);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyQueryPool);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateShaderModule);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyShaderModule);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreatePipelineLayout);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroyPipelineLayout);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdBindPipeline);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdSetViewport);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdSetScissor);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdBindVertexBuffers);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdDraw);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdDrawIndexed);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdDispatch);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdCopyImage);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdPushConstants);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdClearColorImage);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdClearDepthStencilImage);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdBindIndexBuffer);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdSetLineWidth);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdSetDepthBias);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdSetBlendConstants);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdExecuteCommands);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCmdClearAttachments);
+		}
+
+		~device_extension()
+		{
+			if (nullptr != device_)
+				vkDestroyDevice(device_, nullptr);
+		}
+
+		device_extension(device_extension const&) = delete;
+		device_extension& operator=(device_extension const&) = delete;
+		device_extension(device_extension&&) = default;
+		device_extension& operator= (device_extension&&) = default;
+
+		VkDevice get_device() const noexcept
+		{
+			return device_;
+		}
+
+	private:
+		VkDevice		device_;
+		VULKAN_DECLARE_FUNCTION(vkGetDeviceQueue);
+		VULKAN_DECLARE_FUNCTION(vkDeviceWaitIdle);
+		VULKAN_DECLARE_FUNCTION(vkDestroyDevice);
+		VULKAN_DECLARE_FUNCTION(vkCreateBuffer);
+		VULKAN_DECLARE_FUNCTION(vkGetBufferMemoryRequirements);
+		VULKAN_DECLARE_FUNCTION(vkAllocateMemory);
+		VULKAN_DECLARE_FUNCTION(vkBindBufferMemory);
+		VULKAN_DECLARE_FUNCTION(vkCmdPipelineBarrier);
+		VULKAN_DECLARE_FUNCTION(vkCreateImage);
+		VULKAN_DECLARE_FUNCTION(vkGetImageMemoryRequirements);
+		VULKAN_DECLARE_FUNCTION(vkBindImageMemory);
+		VULKAN_DECLARE_FUNCTION(vkCreateImageView);
+		VULKAN_DECLARE_FUNCTION(vkMapMemory);
+		VULKAN_DECLARE_FUNCTION(vkFlushMappedMemoryRanges);
+		VULKAN_DECLARE_FUNCTION(vkUnmapMemory);
+		VULKAN_DECLARE_FUNCTION(vkCmdCopyBuffer);
+		VULKAN_DECLARE_FUNCTION(vkCmdCopyBufferToImage);
+		VULKAN_DECLARE_FUNCTION(vkCmdCopyImageToBuffer);
+		VULKAN_DECLARE_FUNCTION(vkBeginCommandBuffer);
+		VULKAN_DECLARE_FUNCTION(vkEndCommandBuffer);
+		VULKAN_DECLARE_FUNCTION(vkQueueSubmit);
+		VULKAN_DECLARE_FUNCTION(vkDestroyImageView);
+		VULKAN_DECLARE_FUNCTION(vkDestroyImage);
+		VULKAN_DECLARE_FUNCTION(vkDestroyBuffer);
+		VULKAN_DECLARE_FUNCTION(vkFreeMemory);
+		VULKAN_DECLARE_FUNCTION(vkCreateCommandPool);
+		VULKAN_DECLARE_FUNCTION(vkAllocateCommandBuffers);
+		VULKAN_DECLARE_FUNCTION(vkCreateSemaphore);
+		VULKAN_DECLARE_FUNCTION(vkCreateFence);
+		VULKAN_DECLARE_FUNCTION(vkWaitForFences);
+		VULKAN_DECLARE_FUNCTION(vkResetFences);
+		VULKAN_DECLARE_FUNCTION(vkDestroyFence);
+		VULKAN_DECLARE_FUNCTION(vkDestroySemaphore);
+		VULKAN_DECLARE_FUNCTION(vkResetCommandBuffer);
+		VULKAN_DECLARE_FUNCTION(vkFreeCommandBuffers);
+		VULKAN_DECLARE_FUNCTION(vkResetCommandPool);
+		VULKAN_DECLARE_FUNCTION(vkDestroyCommandPool);
+		VULKAN_DECLARE_FUNCTION(vkCreateBufferView);
+		VULKAN_DECLARE_FUNCTION(vkDestroyBufferView);
+		VULKAN_DECLARE_FUNCTION(vkQueueWaitIdle);
+		VULKAN_DECLARE_FUNCTION(vkCreateSampler);
+		VULKAN_DECLARE_FUNCTION(vkCreateDescriptorSetLayout);
+		VULKAN_DECLARE_FUNCTION(vkCreateDescriptorPool);
+		VULKAN_DECLARE_FUNCTION(vkAllocateDescriptorSets);
+		VULKAN_DECLARE_FUNCTION(vkUpdateDescriptorSets);
+		VULKAN_DECLARE_FUNCTION(vkCmdBindDescriptorSets);
+		VULKAN_DECLARE_FUNCTION(vkFreeDescriptorSets);
+		VULKAN_DECLARE_FUNCTION(vkResetDescriptorPool);
+		VULKAN_DECLARE_FUNCTION(vkDestroyDescriptorPool);
+		VULKAN_DECLARE_FUNCTION(vkDestroyDescriptorSetLayout);
+		VULKAN_DECLARE_FUNCTION(vkDestroySampler);
+		VULKAN_DECLARE_FUNCTION(vkCreateRenderPass);
+		VULKAN_DECLARE_FUNCTION(vkCreateFramebuffer);
+		VULKAN_DECLARE_FUNCTION(vkDestroyFramebuffer);
+		VULKAN_DECLARE_FUNCTION(vkDestroyRenderPass);
+		VULKAN_DECLARE_FUNCTION(vkCmdBeginRenderPass);
+		VULKAN_DECLARE_FUNCTION(vkCmdNextSubpass);
+		VULKAN_DECLARE_FUNCTION(vkCmdEndRenderPass);
+		VULKAN_DECLARE_FUNCTION(vkCreatePipelineCache);
+		VULKAN_DECLARE_FUNCTION(vkGetPipelineCacheData);
+		VULKAN_DECLARE_FUNCTION(vkMergePipelineCaches);
+		VULKAN_DECLARE_FUNCTION(vkDestroyPipelineCache);
+		VULKAN_DECLARE_FUNCTION(vkCreateGraphicsPipelines);
+		VULKAN_DECLARE_FUNCTION(vkCreateComputePipelines);
+		VULKAN_DECLARE_FUNCTION(vkDestroyPipeline);
+		VULKAN_DECLARE_FUNCTION(vkDestroyEvent);
+		VULKAN_DECLARE_FUNCTION(vkDestroyQueryPool);
+		VULKAN_DECLARE_FUNCTION(vkCreateShaderModule);
+		VULKAN_DECLARE_FUNCTION(vkDestroyShaderModule);
+		VULKAN_DECLARE_FUNCTION(vkCreatePipelineLayout);
+		VULKAN_DECLARE_FUNCTION(vkDestroyPipelineLayout);
+		VULKAN_DECLARE_FUNCTION(vkCmdBindPipeline);
+		VULKAN_DECLARE_FUNCTION(vkCmdSetViewport);
+		VULKAN_DECLARE_FUNCTION(vkCmdSetScissor);
+		VULKAN_DECLARE_FUNCTION(vkCmdBindVertexBuffers);
+		VULKAN_DECLARE_FUNCTION(vkCmdDraw);
+		VULKAN_DECLARE_FUNCTION(vkCmdDrawIndexed);
+		VULKAN_DECLARE_FUNCTION(vkCmdDispatch);
+		VULKAN_DECLARE_FUNCTION(vkCmdCopyImage);
+		VULKAN_DECLARE_FUNCTION(vkCmdPushConstants);
+		VULKAN_DECLARE_FUNCTION(vkCmdClearColorImage);
+		VULKAN_DECLARE_FUNCTION(vkCmdClearDepthStencilImage);
+		VULKAN_DECLARE_FUNCTION(vkCmdBindIndexBuffer);
+		VULKAN_DECLARE_FUNCTION(vkCmdSetLineWidth);
+		VULKAN_DECLARE_FUNCTION(vkCmdSetDepthBias);
+		VULKAN_DECLARE_FUNCTION(vkCmdSetBlendConstants);
+		VULKAN_DECLARE_FUNCTION(vkCmdExecuteCommands);
+		VULKAN_DECLARE_FUNCTION(vkCmdClearAttachments);
+	};
+
+	// VK_KHR_SWAPCHAIN_EXTENSION
+	constexpr struct KHR_swapchain_ext_t
+	{
+		static char const* name() noexcept
+		{
+			return VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+		}
+	} KHR_swapchain_ext;
+
+	template <typename Base>
+	class device_extension<device_core_t, Base> : public Base
+	{
+	public:
+
+	private:
+
+	};
 }
