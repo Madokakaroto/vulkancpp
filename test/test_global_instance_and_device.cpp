@@ -21,8 +21,6 @@ void test_global_instance()
 	{ 
 		return true; 
 	}, vk::KHR_swapchain_ext);
-
-
 }
 
 int main()
