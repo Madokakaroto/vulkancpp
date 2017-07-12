@@ -77,22 +77,13 @@ namespace vk
 #endif
 
 	// some type defines
-	struct instance_param
+	struct instance_param_t
 	{
 		std::string				app_name;
 		std::string				engine_name;
-		uint32_t					app_version;
-		uint32_t					engine_version;
-		uint32_t					api_version;
 	};
 
-	using physical_device_features_t = VkPhysicalDeviceFeatures;
-	using physical_device_properties_t = VkPhysicalDeviceProperties;
-	using queue_family_properites_t = VkQueueFamilyProperties;
-	using extension_properties_t = VkExtensionProperties;
-
-	template <typename ... Exts>
-	class physical_device
+	class physical_device_t
 	{
 		template <typename, typename>
 		friend class instance_extension;
@@ -101,8 +92,17 @@ namespace vk
 		friend class device_extension;
 
 	protected:
-		physical_device(VkPhysicalDevice device)
+		physical_device_t(
+			VkPhysicalDevice device, 
+			VkPhysicalDeviceProperties properties, 
+			VkPhysicalDeviceFeatures feature,
+			std::vector<VkQueueFamilyProperties	>&& queue,
+			std::vector<VkExtensionProperties>&& extensions)
 			: device_(device)
+			, device_properties_(properties)
+			, device_features_(feature)
+			, queue_family_properties_(std::move(queue))
+			, extension_properties_(std::move(extensions))
 		{}
 
 		VkPhysicalDevice get_device() const noexcept
@@ -111,18 +111,55 @@ namespace vk
 		}
 
 	public:
-		physical_device(physical_device const&) = default;
-		physical_device& operator= (physical_device const&) = default;
-		physical_device(physical_device&&) = default;
-		physical_device& operator= (physical_device&&) = default;
+		physical_device_t(physical_device_t const&) = default;
+		physical_device_t& operator= (physical_device_t const&) = default;
+		physical_device_t(physical_device_t&&) = default;
+		physical_device_t& operator= (physical_device_t&&) = default;
 
-		static std::vector<char const*> extensions()
+		auto const& features() const noexcept
 		{
-			return{ Exts::name()... };
+			return device_features_;
+		}
+
+		auto const& properties() const noexcept
+		{
+			return device_properties_;
+		}
+
+		auto const& queue_families() const noexcept
+		{
+			return queue_family_properties_;
+		}
+
+		auto const& extensions() const noexcept
+		{
+			return extension_properties_;
+		}
+
+		auto const& chosed_extensions() const noexcept
+		{
+			return chosed_extensions_;
+		}
+
+		template <typename ... Exts>
+		bool choose_extensions(Exts... exts)
+		{
+			auto extensions = get_extension_string_array(exts...);
+			if (is_extensions_satisfied(extensions, extension_properties_))
+			{
+				chosed_extensions_ = std::move(extensions);
+				return true;
+			}
+			return false;
 		}
 
 	private:
-		VkPhysicalDevice				device_;
+		VkPhysicalDevice						device_;
+		VkPhysicalDeviceProperties				device_properties_;
+		VkPhysicalDeviceFeatures				device_features_;
+		std::vector<VkQueueFamilyProperties	>	queue_family_properties_;
+		std::vector<VkExtensionProperties>		extension_properties_;
+		std::vector<char const*>				chosed_extensions_;
 	};
 
 	namespace detail
@@ -138,20 +175,26 @@ namespace vk
 
 			function = reinterpret_cast<PFN_type>(proc_addr);
 		}
+	}
 
-		inline bool is_extensions_satisfied(
-			std::vector<char const*> const& desired,
-			std::vector<extension_properties_t> const& available)
+	inline bool is_extensions_satisfied(
+		std::vector<char const*> const& desired,
+		std::vector<VkExtensionProperties> const& available)
+	{
+		return std::all_of(desired.cbegin(), desired.cend(), [&available](auto one_desired)
 		{
-			return std::all_of(desired.cbegin(), desired.cend(), [&available](auto one_desired)
+			return std::find_if(available.cbegin(), available.cend(),
+				[one_desired](auto const& one_available)
 			{
-				return std::find_if(available.cbegin(), available.cend(),
-					[one_desired](auto const& one_available)
-				{
-					return std::strcmp(one_desired, one_available.extensionName) == 0;
-				}) != available.cend();
-			});
-		}
+				return std::strcmp(one_desired, one_available.extensionName) == 0;
+			}) != available.cend();
+		});
+	}
+
+	template <typename ... Exts>
+	inline auto get_extension_string_array(Exts ...) -> std::vector<char const*>
+	{
+		return{ Exts::name()... };
 	}
 
 	// forward declaration
@@ -219,7 +262,7 @@ namespace vk
 		}
 
 		template <typename ... Exts>
-		auto create_instance(instance_param const& param, Exts...) const
+		auto create_instance(instance_param_t const& param, Exts...) const
 		{
 			using instance_t = instance<Exts...>;
 			return instance_t{ *this, param };
@@ -238,7 +281,7 @@ namespace vk
 		/// get the extension supported by vulkan
 		auto get_available_extension() const
 		{
-			std::vector<extension_properties_t> extension_properties;
+			std::vector<VkExtensionProperties> extension_properties;
 			uint32_t extension_count{ 0 };
 			vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
 			if (extension_count > 0)
@@ -252,14 +295,14 @@ namespace vk
 
 		/// create the vulkan instance
 		VkInstance create_instance_handle(
-			instance_param const& param,
+			instance_param_t const& param,
 			std::vector<char const*> const& extensions) const
 		{
 			// enumerate all available extensions
 			auto available_extensions = get_available_extension();
 
 			// check if all desired extensions are among the available extensions
-			if (!detail::is_extensions_satisfied(extensions, available_extensions))
+			if (!is_extensions_satisfied(extensions, available_extensions))
 				throw std::runtime_error{ "Extensions are not satisfired!" };
 
 			// create the vulkan instance
@@ -269,10 +312,10 @@ namespace vk
 				VK_STRUCTURE_TYPE_APPLICATION_INFO,			// VkStructureType			sType
 				nullptr,                                 // const void*				pNext
 				param.app_name.c_str(),					// const char*				pApplicationName
-				param.app_version,						// uint32_t					applicationVersion
+				VK_MAKE_VERSION(1, 0, 0),					// uint32_t					applicationVersion
 				param.engine_name.c_str(),					// const char*				pEngineName
-				param.engine_version,						// uint32_t					engineVersion
-				param.api_version							// uint32_t					apiVersion
+				VK_MAKE_VERSION(1, 0, 0),					// uint32_t					engineVersion
+				VK_MAKE_VERSION(1, 0, 0)					// uint32_t					apiVersion
 			};
 
 			/// fill the VkInstanceCreateInfo struct
@@ -409,66 +452,65 @@ namespace vk
 		{
 			uint32_t extension_count{ 0 };
 			vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
-			std::vector<extension_properties_t> extensions{ extension_count };
+			std::vector<VkExtensionProperties> extensions{ extension_count };
 			vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, extensions.data());
 			return extensions;
 		}
 
-	public:
-		template <typename PhysicalDevice>
-		auto get_physical_device_features(PhysicalDevice const& device) const
+		auto get_physical_device_features(VkPhysicalDevice device) const
 		{
-			physical_device_features_t features;
-			vkGetPhysicalDeviceFeatures(device.get_device(), &features);
+			VkPhysicalDeviceFeatures features;
+			vkGetPhysicalDeviceFeatures(device, &features);
 			return features;
 		}
 
-		template <typename PhysicalDevice>
-		auto get_physical_device_properties(PhysicalDevice const& device) const
+		auto get_physical_device_properties(VkPhysicalDevice device) const
 		{
-			physical_device_properties_t properties;
-			vkGetPhysicalDeviceProperties(device.get_device(), &properties);
+			VkPhysicalDeviceProperties properties;
+			vkGetPhysicalDeviceProperties(device, &properties);
 			return properties;
 		}
 
-		template <typename PhysicalDevice>
-		auto enumerate_queue_family_properties(PhysicalDevice const& device) const
+		auto enumerate_queue_family_properties(VkPhysicalDevice device) const
 		{
 			uint32_t queue_family_count{ 0 };
-			vkGetPhysicalDeviceQueueFamilyProperties(device.get_device(), &queue_family_count, nullptr);
-			std::vector<queue_family_properites_t> properties{ queue_family_count };
-			vkGetPhysicalDeviceQueueFamilyProperties(device.get_device(), &queue_family_count, properties.data());
+			vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
+			std::vector<VkQueueFamilyProperties> properties{ queue_family_count };
+			vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, properties.data());
 			return properties;
 		}
 
-		template <typename PhysicalDevice>
-		auto enumerate_device_extensions(PhysicalDevice const& device) const
+	public:
+		template <typename Filter>
+		auto select_physical_device(Filter&& filter) const
 		{
-			return enumerate_device_extensions(device.get_device());
-		}
-
-		template <typename Filter, typename ... Exts>
-		auto select_physical_device(Filter&& filter, Exts ...) const
-		{
-			using physical_device_t = physical_device<Exts...>;
-
+			// enumerate all physical device pointer
 			auto all_physical_devices = enumerate_physical_devices();
-			auto itr = std::find_if(all_physical_devices.begin(), all_physical_devices.end(), 
-				[filter=std::forward<Filter>(filter), this](auto physical_device)
+
+			// transform them to physical device type for user
+			std::list<physical_device_t> all_user_physical_devices;
+			std::transform(all_physical_devices.cbegin(), all_physical_devices.cend(), 
+				std::back_inserter(all_user_physical_devices), [this](auto device)
 			{
-				auto extensions = enumerate_device_extensions(physical_device);
-				auto desired_extensions = physical_device_t::extensions();
-
-				if (!detail::is_extensions_satisfied(desired_extensions, extensions))
-					return false;
-
+				auto properties = get_physical_device_properties(device);
+				auto features = get_physical_device_features(device);
+				auto queue_families = enumerate_queue_family_properties(device);
+				auto extensions = enumerate_device_extensions(device);
+				return physical_device_t{ device, properties, features, std::move(queue_families), std::move(extensions) };
+			});
+			
+			// find if one of the physical device satifies the filter
+			auto itr = std::find_if(all_user_physical_devices.begin(), all_user_physical_devices.end(),
+				[filter=std::forward<Filter>(filter)](auto& physical_device)
+			{
 				return filter(physical_device);
 			});
-
-			if (all_physical_devices.end() == itr)
+			
+			// throw runtime error if no physical device is found
+			if (all_user_physical_devices.end() == itr)
 				throw std::runtime_error{ "Cannot select an appropriate physical device!" };
 
-			return physical_device_t{ *itr };
+			return *itr;
 		}
 
 	private:
@@ -499,18 +541,25 @@ namespace vk
 		instance(instance&&) = default;
 		instance& operator=(instance&&) = default;
 
-		instance(global const& global, instance_param const& param)
+		instance(global const& global, instance_param_t const& param)
 			: instance_with_extensions(global, global.create_instance_handle(param, { Exts::name() ... }))
 			, param_(param)
 		{}
 
-		instance_param const& get_param() const noexcept
+		instance_param_t const& get_param() const noexcept
 		{
 			return param_;
 		}
 
 	private:
-		instance_param const param_;
+		instance_param_t const param_;
+	};
+
+	struct KHR_surface_properties_t
+	{
+		VkSurfaceCapabilitiesKHR			capabilities;
+		std::vector<VkSurfaceFormatKHR>	formats;
+		std::vector<VkPresentModeKHR>		present_modes;
 	};
 
 	// surface
@@ -549,6 +598,28 @@ namespace vk
 		{
 			if(nullptr != surface)
 				vkDestroySurfaceKHR(this->get_instance(), surface, nullptr);
+		}
+
+	public:
+		auto get_surface_properties(physical_device_t const& device, KHR_surface_t const& surface) const
+		{
+			uint32_t count{ 0 };
+			KHR_surface_properties_t properties;
+			vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.get_device(), surface.get_object(), &properties.capabilities);
+			vkGetPhysicalDeviceSurfaceFormatsKHR(device.get_device(), surface.get_object(), &count, nullptr);
+			if (count > 0)
+			{
+				properties.formats.resize(count);
+				vkGetPhysicalDeviceSurfaceFormatsKHR(device.get_device(), surface.get_object(), &count, properties.formats.data());
+			}
+			vkGetPhysicalDeviceSurfacePresentModesKHR(device.get_device(), surface.get_object(), &count, nullptr);
+			if (count > 0)
+			{
+				properties.present_modes.resize(count);
+				vkGetPhysicalDeviceSurfacePresentModesKHR(device.get_device(), surface.get_object(), &count, properties.present_modes.data());
+			}
+
+			return properties;
 		}
 
 	private:
@@ -825,7 +896,7 @@ namespace vk
 	} KHR_swapchain_ext;
 
 	template <typename Base>
-	class device_extension<device_core_t, Base> : public Base
+	class device_extension<KHR_swapchain_ext_t, Base> : public Base
 	{
 	public:
 
