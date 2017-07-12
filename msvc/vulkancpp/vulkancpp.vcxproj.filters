@@ -2,5 +2,32 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClInclude Include="..\..\src\vulkancpp.hpp" />
+    <ClInclude Include="..\..\src\core\device.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\instance.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\vulkancpp_forward.hpp" />
+    <ClInclude Include="..\..\src\core\function.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\global.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\object.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\extensions\khr.hpp">
+      <Filter>extesions</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="core">
+      <UniqueIdentifier>{19135c67-cec6-42f5-810b-cc8b3a3a69a1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="extesions">
+      <UniqueIdentifier>{04efac8c-b91b-4d0f-9a9a-1f3b24a87db3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

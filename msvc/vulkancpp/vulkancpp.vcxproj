@@ -19,7 +19,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\core\device.hpp" />
+    <ClInclude Include="..\..\src\core\function.hpp" />
+    <ClInclude Include="..\..\src\core\global.hpp" />
+    <ClInclude Include="..\..\src\core\instance.hpp" />
+    <ClInclude Include="..\..\src\core\object.hpp" />
+    <ClInclude Include="..\..\src\extensions\khr.hpp" />
     <ClInclude Include="..\..\src\vulkancpp.hpp" />
+    <ClInclude Include="..\..\src\vulkancpp_forward.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{450D4488-6E4C-4844-88DA-3C842FA8F76D}</ProjectGuid>
