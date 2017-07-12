@@ -27,20 +27,25 @@ void test_global_instance()
 
 		// one of the queue families must be used to draw
 		auto& queue_families = physical_device.queue_families();
-		if (std::none_of(queue_families.cbegin(), queue_families.cend(),
-			[](VkQueueFamilyProperties const& queue_family)
+		uint32_t queue_index = 0;
+		return std::any_of(queue_families.cbegin(), queue_families.cend(),
+			[&](VkQueueFamilyProperties const& queue_family)
 		{
-			return (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
-				queue_family.queueCount > 0;
-		}))
-			return false;
+			auto current_index = queue_index++;
 
-		// check compatibility for surface
-		auto surface_properties = instance.get_surface_properties(physical_device, surface);
-		if (surface_properties.formats.empty() || surface_properties.present_modes.empty())
-			return false;
+			if ((0 == (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)) || 0 == queue_family.queueCount)
+				return false;
 
-		return true;
+			// check compatibility for surface
+			auto surface_properties = instance.get_surface_properties(physical_device, surface);
+			if (surface_properties.formats.empty() || surface_properties.present_modes.empty())
+				return false;
+
+			if (!instance.get_surface_support(physical_device, surface, current_index))
+				return false;
+
+			return true;
+		});
 	});
 }
 

@@ -622,6 +622,13 @@ namespace vk
 			return properties;
 		}
 
+		bool get_surface_support(physical_device_t const& device, KHR_surface_t const& surface, uint32_t queue_index) const
+		{
+			VkBool32 result;
+			vkGetPhysicalDeviceSurfaceSupportKHR(device.get_device(), queue_index, surface.get_object(), &result);
+			return 0 != result;
+		}
+
 	private:
 		VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR);
 		VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
