@@ -15,7 +15,9 @@ void test_global_instance()
 
 	auto physical_device = instance.select_physical_device(
 		vk::physical_device_require_descrete_card() && 
-		vk::physical_device_include_extensions(vk::khr::swapchain_ext));
+		vk::physical_device_include_extensions(vk::khr::swapchain_ext) &&
+		vk::khr::any_queue_family_is_compatible_with_surface(instance, surface)
+	);
 }
 
 int main()

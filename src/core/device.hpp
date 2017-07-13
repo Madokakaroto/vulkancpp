@@ -358,54 +358,20 @@ namespace vk
 		} };
 	}
 
-	class physical_device_and_operator_t
-	{
-	public:
-		physical_device_and_operator_t(
-			physical_device_functor_t const& lhs,
-			physical_device_functor_t const& rhs)
-			: lhs_(lhs), rhs_(rhs)
-		{
-		}
-
-		auto operator() (physical_device_t const& physical_device) const
-		{
-			return lhs_(physical_device) && rhs_(physical_device);
-		}
-
-	private:
-		physical_device_functor_t const& lhs_;
-		physical_device_functor_t	const& rhs_;
-	};
-
-	class physical_device_or_operator_t
-	{
-	public:
-		physical_device_or_operator_t(
-			physical_device_functor_t const& lhs,
-			physical_device_functor_t const& rhs)
-			: lhs_(lhs), rhs_(rhs)
-		{
-		}
-
-		auto operator() (physical_device_t const& physical_device) const
-		{
-			return lhs_(physical_device) || rhs_(physical_device);
-		}
-
-	private:
-		physical_device_functor_t const& lhs_;
-		physical_device_functor_t	const& rhs_;
-	};
-
 	inline auto operator&& (physical_device_functor_t const& lhs, physical_device_functor_t const& rhs)
 	{
-		return physical_device_and_operator_t{ lhs, rhs };
+		return physical_device_functor_t{ [&](auto const& physical_device) 
+		{ 
+			return lhs(physical_device) && rhs(physical_device);
+		} };
 	}
 
 	inline auto operator|| (physical_device_functor_t const& lhs, physical_device_functor_t const& rhs)
 	{
-		return physical_device_or_operator_t{ lhs, rhs };
+		return physical_device_functor_t{ [&](auto const& physical_device)
+		{
+			return lhs(physical_device) || rhs(physical_device);
+		} };
 	}
 
 	inline auto physical_device_require_descrete_card()
@@ -423,5 +389,32 @@ namespace vk
 		{
 			return physical_device.choose_extensions(extensions...);
 		});
+	}
+
+	template <typename F>
+	auto all_of(F const& f)
+	{
+		return [&](auto const& container)
+		{
+			return std::all_of(container.cbegin(), container.cend(), f);
+		};
+	}
+
+	template <typename F>
+	auto any_of(F const& f)
+	{
+		return [&](auto const& container)
+		{
+			return std::any_of(container.cbegin(), container.cend(), f);
+		};
+	}
+
+	template <typename F>
+	auto none_of(F const& f)
+	{
+		return [&](auto const& container)
+		{
+			return std::none_of(container.cbegin(), container.cend(), f);
+		};
 	}
 }

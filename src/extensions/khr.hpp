@@ -159,4 +159,29 @@ namespace vk
 	private:
 
 	};
+
+	namespace khr
+	{
+		template <typename Instance>
+		auto any_queue_family_is_compatible_with_surface(Instance const& instance, surface_t const& surface)
+		{
+			return physical_device_function([&](physical_device_t const& physical_device)
+			{
+				auto surface_properties = instance.get_surface_properties(physical_device, surface);
+				if (surface_properties.formats.empty() || surface_properties.present_modes.empty())
+					return false;
+
+				auto const& queue_families = physical_device.queue_families();
+				return std::any_of(queue_families.cbegin(), queue_families.cend(),
+					[&](auto const& queue_family)
+				{
+					if (0 != (queue_family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
+						0 < queue_family.properties.queueCount)
+						return true;
+
+					return instance.get_surface_support(physical_device, surface, queue_family.index);
+				});
+			});
+		}
+	}
 }
