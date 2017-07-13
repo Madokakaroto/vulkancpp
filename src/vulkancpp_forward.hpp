@@ -32,6 +32,12 @@
 
 namespace vk
 {
+	// some type defines
+	using physical_device_properties_t = VkPhysicalDeviceProperties;
+	using physical_device_features_t = VkPhysicalDeviceFeatures;
+	using extension_properties_t = VkExtensionProperties;
+	using queue_family_properties_t = VkQueueFamilyProperties;
+
 	struct null_type {};
 
 	/// platform
@@ -58,6 +64,12 @@ namespace vk
 	{
 		std::string				app_name;
 		std::string				engine_name;
+	};
+
+	struct queue_family_t
+	{
+		uint32_t					index;
+		queue_family_properties_t	properties;
 	};
 
 #if defined _WIN32

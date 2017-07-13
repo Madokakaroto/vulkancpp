@@ -18,14 +18,14 @@ namespace vk
 	protected:
 		physical_device_t(
 			VkPhysicalDevice device,
-			VkPhysicalDeviceProperties properties,
-			VkPhysicalDeviceFeatures feature,
-			std::vector<VkQueueFamilyProperties	>&& queue,
-			std::vector<VkExtensionProperties>&& extensions)
+			physical_device_properties_t properties,
+			physical_device_features_t feature,
+			std::vector<queue_family_t>&& queue,
+			std::vector<extension_properties_t>&& extensions)
 			: device_(device)
 			, device_properties_(properties)
 			, device_features_(feature)
-			, queue_family_properties_(std::move(queue))
+			, queue_families_(std::move(queue))
 			, extension_properties_(std::move(extensions))
 		{}
 
@@ -52,7 +52,7 @@ namespace vk
 
 		auto const& queue_families() const noexcept
 		{
-			return queue_family_properties_;
+			return queue_families_;
 		}
 
 		auto const& extensions() const noexcept
@@ -79,10 +79,10 @@ namespace vk
 
 	private:
 		VkPhysicalDevice						device_;
-		VkPhysicalDeviceProperties				device_properties_;
-		VkPhysicalDeviceFeatures				device_features_;
-		std::vector<VkQueueFamilyProperties	>	queue_family_properties_;
-		std::vector<VkExtensionProperties>		extension_properties_;
+		physical_device_properties_t			device_properties_;
+		physical_device_features_t				device_features_;
+		std::vector<queue_family_t	>			queue_families_;
+		std::vector<extension_properties_t>		extension_properties_;
 		mutable std::vector<char const*>		chosed_extensions_;
 	};
 

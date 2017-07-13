@@ -136,13 +136,24 @@ namespace vk
 			return properties;
 		}
 
-		auto enumerate_queue_family_properties(VkPhysicalDevice device) const
+		auto enumerate_queue_families(VkPhysicalDevice device) const
 		{
+			// enumerate all queue families properties
 			uint32_t queue_family_count{ 0 };
 			vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
 			std::vector<VkQueueFamilyProperties> properties{ queue_family_count };
 			vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, properties.data());
-			return properties;
+
+			// transform into std::vector<queue_families>
+			std::vector<queue_family_t> queue_families{ queue_family_count };
+			queue_family_count = 0;
+			std::transform(properties.cbegin(), properties.cend(), queue_families.begin(),
+				[&queue_family_count](auto const& queue_family_properties) -> queue_family_t
+			{
+				return{ queue_family_count++, queue_family_properties };
+			});
+
+			return queue_families;
 		}
 
 	public:
@@ -159,7 +170,7 @@ namespace vk
 			{
 				auto properties = get_physical_device_properties(device);
 				auto features = get_physical_device_features(device);
-				auto queue_families = enumerate_queue_family_properties(device);
+				auto queue_families = enumerate_queue_families(device);
 				auto extensions = enumerate_device_extensions(device);
 				return physical_device_t{ device, properties, features, std::move(queue_families), std::move(extensions) };
 			});
