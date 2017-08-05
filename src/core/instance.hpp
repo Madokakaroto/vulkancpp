@@ -7,33 +7,52 @@
 namespace vk
 {
 	// class hierarchy generation
-	template <typename ... Exts>
+	template 
+	<
+		template <typename, typename> class TE,
+		typename ... Exts
+	>
 	struct generate_extensions_hierarchy;
 
-	template <typename T, typename ... Rests>
-	struct generate_extensions_hierarchy<T, Rests...>
+	template 
+	<
+		template <typename, typename> class TE,
+		typename T, typename ... Rests
+	>
+	struct generate_extensions_hierarchy<TE, T, Rests...>
 	{
-		using type = instance_extension<T, typename generate_extensions_hierarchy<Rests...>::type>;
+		using type = TE<T, typename generate_extensions_hierarchy<TE, Rests...>::type>;
 	};
 
-	template <typename T>
-	struct generate_extensions_hierarchy<T>
+	template
+	<
+		template <typename, typename> class TE,
+		typename T
+	>
+	struct generate_extensions_hierarchy<TE, T>
 	{
-		using type = instance_extension<T, null_type>;
+		using type = TE<T, null_type>;
 	};
 
-	template <typename ... Exts>
-	using generate_extensions_hierarchy_t = typename generate_extensions_hierarchy<Exts...>::type;
+	template
+	<
+		template <typename, typename> class TE,
+		typename ... Exts
+	>
+	using generate_extensions_hierarchy_t = typename generate_extensions_hierarchy<TE, Exts...>::type;
 
 	// instance  core
 	struct instance_core_t {};
 
+	template <typename T, typename Base>
+	using instance_extension_alias = instance_extension<T, Base>;
+
 	// instance wrapper
 	template <typename ... Exts>
 	class instance
-		: public generate_extensions_hierarchy_t<Exts..., instance_core_t>
+		: public generate_extensions_hierarchy_t<instance_extension_alias, Exts..., instance_core_t>
 	{
-		using instance_with_extensions = generate_extensions_hierarchy_t<Exts..., instance_core_t>;
+		using instance_with_extensions = generate_extensions_hierarchy_t<instance_extension_alias, Exts..., instance_core_t>;
 
 	public:
 		instance(instance const&) = delete;
