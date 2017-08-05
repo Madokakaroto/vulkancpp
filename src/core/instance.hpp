@@ -1,9 +1,5 @@
 #pragma once
 
-#ifndef VULKAN_LOAD_INSTNACE_FUNCTION
-#define VULKAN_LOAD_INSTNACE_FUNCTION(name) global.load_func(VULKAN_STR2(name), name, instance)
-#endif
-
 namespace vk
 {
 	// class hierarchy generation

@@ -155,9 +155,25 @@ namespace vk
 	class device_extension<khr::swapchain_ext_t, Base> : public Base
 	{
 	public:
+		template <typename Instance>
+		device_extension(Instance const& instance, VkDevice device)
+			: Base(instance, device)
+		{
+			assert(this->get_device() == device);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateSwapchainKHR);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkGetSwapchainImagesKHR);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkAcquireNextImageKHR);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkQueuePresentKHR);
+			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroySwapchainKHR);
+
+		}
 
 	private:
-
+		VULKAN_DECLARE_FUNCTION(vkCreateSwapchainKHR);
+		VULKAN_DECLARE_FUNCTION(vkGetSwapchainImagesKHR);
+		VULKAN_DECLARE_FUNCTION(vkAcquireNextImageKHR);
+		VULKAN_DECLARE_FUNCTION(vkQueuePresentKHR);
+		VULKAN_DECLARE_FUNCTION(vkDestroySwapchainKHR);
 	};
 
 	namespace khr

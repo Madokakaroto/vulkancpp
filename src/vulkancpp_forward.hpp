@@ -30,6 +30,22 @@
 #define VULKAN_DECLARE_FUNCTION(name) PFN_##name name;
 #endif
 
+#ifndef VULKAN_LOAD_INSTNACE_FUNCTION
+#define VULKAN_LOAD_INSTNACE_FUNCTION(name) global.load_func(VULKAN_STR2(name), name, instance)
+#endif
+
+#ifndef VULKAN_LOAD_DEVICE_FUNCTION
+#define VULKAN_LOAD_DEVICE_FUNCTION(name) instance.load_func(VULKAN_STR2(name), name, device)
+#endif
+
+#ifndef VULKAN_EXPORT_FUNCTION
+#define VULKAN_EXPORT_FUNCTION(name) export_func(VULKAN_STR2(name), name)
+#endif
+
+#ifndef VULKAN_LOAD_FUNCTION
+#define VULKAN_LOAD_FUNCTION(name) load_func(VULKAN_STR2(name), name)
+#endif
+
 namespace vk
 {
 	// some type defines
@@ -70,6 +86,12 @@ namespace vk
 	{
 		uint32_t					index;
 		queue_family_properties_t	properties;
+	};
+
+	struct queue_info_t
+	{
+		uint32_t					family_index;
+		std::vector<float>		priorities;
 	};
 
 #if defined _WIN32

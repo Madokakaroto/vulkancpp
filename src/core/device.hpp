@@ -1,9 +1,5 @@
 #pragma once
 
-#ifndef VULKAN_LOAD_DEVICE_FUNCTION
-#define VULKAN_LOAD_DEVICE_FUNCTION(name) instance.load_func(VULKAN_STR2(name), name, device)
-#endif
-
 namespace vk
 {
 	/// physical device
@@ -293,6 +289,23 @@ namespace vk
 		VULKAN_DECLARE_FUNCTION(vkCmdSetBlendConstants);
 		VULKAN_DECLARE_FUNCTION(vkCmdExecuteCommands);
 		VULKAN_DECLARE_FUNCTION(vkCmdClearAttachments);
+	};
+
+	template <typename T, typename Base>
+	using device_extension_alias = device_extension<T, Base>;
+
+	// logical device
+	template <typename ... Exts>
+	class device : public generate_extensions_hierarchy_t<device_extension_alias, Exts..., device_core_t>
+	{
+		using device_with_extension = generate_extensions_hierarchy_t<device_extension_alias, Exts..., device_core_t>;
+	public:
+		device(device const&) = delete;
+		device(device&&) = default;
+		device& operator= (device const&) = delete;
+		device& operator= (device&&) = default;
+
+		//device
 	};
 
 	// high level function

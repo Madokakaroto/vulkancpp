@@ -1,13 +1,5 @@
 #pragma once
 
-#ifndef VULKAN_EXPORT_FUNCTION
-#define VULKAN_EXPORT_FUNCTION(name) export_func(VULKAN_STR2(name), name)
-#endif
-
-#ifndef VULKAN_LOAD_FUNCTION
-#define VULKAN_LOAD_FUNCTION(name) load_func(VULKAN_STR2(name), name)
-#endif
-
 namespace vk
 {
 	namespace detail
