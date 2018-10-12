@@ -7,9 +7,9 @@ namespace vk
 	{
 		struct surface_properties_t
 		{
-			VkSurfaceCapabilitiesKHR			capabilities;
-			std::vector<VkSurfaceFormatKHR>	formats;
-			std::vector<VkPresentModeKHR>		present_modes;
+			VkSurfaceCapabilitiesKHR            capabilities;
+			std::vector<VkSurfaceFormatKHR>     formats;
+			std::vector<VkPresentModeKHR>       present_modes;
 		};
 
 		// surface
@@ -89,11 +89,14 @@ namespace vk
 
 
 #ifdef VK_USE_PLATFORM_WIN32_KHR
+#include <Windows.h>
 	/// KHR win32 surface extension is an instance extension
 	namespace khr
 	{
 		constexpr struct surface_win32_ext_t
 		{
+            using native_handle_t = HWND;
+
 			static char const* name() noexcept
 			{
 				return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
@@ -105,6 +108,9 @@ namespace vk
 	class instance_extension<khr::surface_win32_ext_t, Base> : public Base
 	{
 	protected:
+        using native_handle_t = khr::surface_win32_ext_t::native_handle_t;
+        using app_handle_t = HINSTANCE;
+
 		instance_extension(instance_extension const&) = delete;
 		instance_extension& operator=(instance_extension const&) = delete;
 		instance_extension(instance_extension&&) = default;
@@ -118,15 +124,21 @@ namespace vk
 		}
 
 	public:
-		auto create_surface(HINSTANCE app_instance, HWND window)
+
+        auto create_surface(window_t const& window)
+        {
+            return create_surface(window.get_app_handle(), window.get_native_handle());
+        }
+
+		auto create_surface(app_handle_t app_handle, native_handle_t window_handle)
 		{
 			VkWin32SurfaceCreateInfoKHR create_info =
 			{
-				VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,			// VkStructureType                 sType
-				nullptr,												// const void*					pNext
-				0,													// VkWin32SurfaceCreateFlagsKHR    flags
-				app_instance,											// HINSTANCE                       hinstance
-				window												// HWND                            hwnd
+				VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,    // VkStructureType                 sType
+				nullptr,                                            // const void*                     pNext
+				0,                                                  // VkWin32SurfaceCreateFlagsKHR    flags
+                app_handle,                                         // HINSTANCE                       hinstance
+                window_handle                                       // HWND                            hwnd
 			};
 
 			VkSurfaceKHR surface;

@@ -85,8 +85,8 @@ namespace vk
 			VkApplicationInfo app_info =
 			{
 				VK_STRUCTURE_TYPE_APPLICATION_INFO,			// VkStructureType			sType
-				nullptr,                                 // const void*				pNext
-				param.app_name.c_str(),					// const char*				pApplicationName
+				nullptr,                                    // const void*				pNext
+				param.app_name.c_str(),					    // const char*				pApplicationName
 				VK_MAKE_VERSION(1, 0, 0),					// uint32_t					applicationVersion
 				param.engine_name.c_str(),					// const char*				pEngineName
 				VK_MAKE_VERSION(1, 0, 0),					// uint32_t					engineVersion
@@ -98,9 +98,9 @@ namespace vk
 			{
 				VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,		// VkStructureType			sType
 				nullptr,									// const void*				pNext
-				0,										// VkInstanceCreateFlags		flags
-				&app_info,								// const VkApplicationInfo*	pApplicationInfo
-				0,										// uint32_t					enabledLayerCount
+				0,										    // VkInstanceCreateFlags		flags
+				&app_info,								    // const VkApplicationInfo*	pApplicationInfo
+				0,										    // uint32_t					enabledLayerCount
 				nullptr,									// const char * const*		ppEnabledLayerNames
 				static_cast<uint32_t>(extensions.size()),   // uint32_t					enabledExtensionCount
 				extensions.data()							// const char * const*		ppEnabledExtensionNames

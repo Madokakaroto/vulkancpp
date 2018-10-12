@@ -21,6 +21,15 @@
     <ClInclude Include="..\..\src\extensions\khr.hpp">
       <Filter>extesions</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\application\application.hpp">
+      <Filter>application</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\application\platform.hpp">
+      <Filter>application</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\application\window.hpp">
+      <Filter>application</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -28,6 +37,9 @@
     </Filter>
     <Filter Include="extesions">
       <UniqueIdentifier>{04efac8c-b91b-4d0f-9a9a-1f3b24a87db3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="application">
+      <UniqueIdentifier>{6b85aa0f-b7cd-4f9d-bf38-dd7583fe9ad3}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

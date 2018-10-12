@@ -19,6 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\application\application.hpp" />
+    <ClInclude Include="..\..\src\application\platform.hpp" />
+    <ClInclude Include="..\..\src\application\window.hpp" />
     <ClInclude Include="..\..\src\core\device.hpp" />
     <ClInclude Include="..\..\src\core\function.hpp" />
     <ClInclude Include="..\..\src\core\global.hpp" />
@@ -51,7 +54,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
