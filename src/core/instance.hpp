@@ -48,7 +48,7 @@ namespace vk
 	class instance
 		: public generate_extensions_hierarchy_t<instance_extension_alias, Exts..., instance_core_t>
 	{
-		using instance_with_extensions = generate_extensions_hierarchy_t<instance_extension_alias, Exts..., instance_core_t>;
+		using instance_with_extensions = typename generate_extensions_hierarchy<instance_extension_alias, Exts..., instance_core_t>::type;
 
 	public:
 		instance(instance const&) = delete;
@@ -59,7 +59,8 @@ namespace vk
 		instance(global_t const& global, instance_param_t const& param)
 			: instance_with_extensions(global, global.create_instance_handle(param, { Exts::name() ... }))
 			, param_(param)
-		{}
+		{
+        }
 
 		instance_param_t const& get_param() const noexcept
 		{
@@ -71,7 +72,7 @@ namespace vk
 	};
 
 	template <>
-	class instance_extension<instance_core_t>
+	class instance_extension<instance_core_t, null_type>
 	{
 		template <typename, typename>
 		friend class device_extension;

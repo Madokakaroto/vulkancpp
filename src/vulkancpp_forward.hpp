@@ -22,6 +22,9 @@
 // vulkan library
 #include <vulkan/vulkan.h>
 
+// base library
+#include "base/mpl.hpp"
+#include "base/functional.hpp"
 
 #define VULKAN_STR1(token) #token
 #define VULKAN_STR2(token) VULKAN_STR1(token)
@@ -51,7 +54,7 @@ namespace vk
 	// some type defines
 	using physical_device_properties_t = VkPhysicalDeviceProperties;
 	using physical_device_features_t = VkPhysicalDeviceFeatures;
-	using extension_properties_t = VkExtensionProperties;
+	using extension_property_t = VkExtensionProperties;
 	using queue_family_properties_t = VkQueueFamilyProperties;
 
 	struct null_type {};
@@ -75,24 +78,27 @@ namespace vk
 		}
 	};
 
-	// some type defines
-	struct instance_param_t
-	{
-		std::string				app_name;
-		std::string				engine_name;
-	};
+    // some type defines
+    struct instance_param_t
+    {
+        std::string                 app_name;
+        std::string                 engine_name;
+    };
 
-	struct queue_family_t
-	{
-		uint32_t					index;
-		queue_family_properties_t	properties;
-	};
+    struct queue_family_t
+    {
+        uint32_t                    index;
+        queue_family_properties_t   properties;
+    };
 
-	struct queue_info_t
-	{
-		uint32_t					family_index;
-		std::vector<float>		priorities;
-	};
+    struct queue_info_t
+    {
+        uint32_t                    family_index;
+        std::vector<float>          priorities;
+    };
+
+    using queue_families_t = std::vector<queue_family_t>;
+    using extension_properties_t = std::vector<extension_property_t>;
 
 #if defined _WIN32
 	using platform_type = platform_windows;
@@ -103,14 +109,14 @@ namespace vk
 #endif
 
 	// forward declaration
-	template <typename T, typename Base = null_type>
-	class instance_extension;
+	template <typename T, typename Base>
+    class instance_extension;
 
 	template <typename ... Exts>
 	class instance;
 
 	template <typename T, typename Base = null_type>
-	class device_extension;
+    class device_extension;
 
 	template <typename ... Exts>
 	class device;

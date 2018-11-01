@@ -22,11 +22,14 @@
     <ClInclude Include="..\..\src\application\application.hpp" />
     <ClInclude Include="..\..\src\application\platform.hpp" />
     <ClInclude Include="..\..\src\application\window.hpp" />
+    <ClInclude Include="..\..\src\base\functional.hpp" />
+    <ClInclude Include="..\..\src\base\mpl.hpp" />
     <ClInclude Include="..\..\src\core\device.hpp" />
     <ClInclude Include="..\..\src\core\function.hpp" />
     <ClInclude Include="..\..\src\core\global.hpp" />
     <ClInclude Include="..\..\src\core\instance.hpp" />
     <ClInclude Include="..\..\src\core\object.hpp" />
+    <ClInclude Include="..\..\src\core\physical_device.hpp" />
     <ClInclude Include="..\..\src\extensions\khr.hpp" />
     <ClInclude Include="..\..\src\vulkancpp.hpp" />
     <ClInclude Include="..\..\src\vulkancpp_forward.hpp" />

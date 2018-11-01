@@ -30,6 +30,15 @@
     <ClInclude Include="..\..\src\application\window.hpp">
       <Filter>application</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\base\mpl.hpp">
+      <Filter>base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\base\functional.hpp">
+      <Filter>base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\physical_device.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -40,6 +49,9 @@
     </Filter>
     <Filter Include="application">
       <UniqueIdentifier>{6b85aa0f-b7cd-4f9d-bf38-dd7583fe9ad3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="base">
+      <UniqueIdentifier>{d72df946-edfe-46dd-9153-14e70872f57f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
