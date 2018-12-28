@@ -1,3 +1,4 @@
+#include <range/v3/all.hpp>
 #include <vulkancpp.hpp>
 
 void init_vulkan(vk::window_t& window);
@@ -23,10 +24,12 @@ void init_vulkan(vk::window_t& window)
     vk::instance_param_t param = { "test app"s, "test engine"s };
     auto instance = global.create_instance(param, vk::khr::surface_win32_ext, vk::khr::surface_ext);
     auto surface = instance.create_surface(window);
-    auto physical_device = instance.select_physical_device(vk::requrie_descete_gpu);
+    auto physical_device = instance.select_physical_device();
+
+    auto count = physical_device.count();
 
     auto surpport_surface = [&surface, &instance](
-        vk::physical_device_t const& physical_device, vk::queue_families_t const& queue_family) {
+        vk::physical_device_t physical_device, vk::queue_families_t const& queue_family) {
         return instance.get_surface_support(physical_device, surface, queue_family.front().index);
     };
 }

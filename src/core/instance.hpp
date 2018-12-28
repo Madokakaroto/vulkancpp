@@ -173,36 +173,34 @@ namespace vk
 		}
 
 	public:
-		template <typename Filter>
-		auto select_physical_device(Filter&& filter) const
+		template <typename T = physical_device_config_t>
+		auto select_physical_device() const -> physical_device_select_result_t<T>
 		{
 			// enumerate all physical device pointer
 			auto all_physical_devices = enumerate_physical_devices();
 
 			// transform them to physical device type for user
-			std::list<physical_device_t> all_user_physical_devices;
-			std::transform(all_physical_devices.cbegin(), all_physical_devices.cend(),
-				std::back_inserter(all_user_physical_devices), [this](auto device)
-			{
-				auto properties = get_physical_device_properties(device);
-				auto features = get_physical_device_features(device);
-				auto queue_families = enumerate_queue_families(device);
-				auto extensions = enumerate_device_extensions(device);
-				return physical_device_t{ device, properties, features, std::move(queue_families), std::move(extensions) };
-			});
+            using select_result_t = typename physical_device_select_result_t<T>::select_result_t;
+            select_result_t result;
+            result.reserve(all_physical_devices.size());
 
-			// find if one of the physical device satifies the filter
-			auto itr = std::find_if(all_user_physical_devices.begin(), all_user_physical_devices.end(),
-				[filter = std::forward<Filter>(filter)](auto& physical_device)
-			{
-				return filter(physical_device);
-			});
+            // create 
+            std::transform(all_physical_devices.cbegin(), all_physical_devices.cend(),
+                std::back_inserter(result), [this](auto device)
+            {
+                T t{ device };
+                if constexpr (detail::has_physical_device_properties_v<T>)
+                    t.physical_device_properties = get_physical_device_properties(device);
+                if constexpr (detail::has_physical_device_features_v<T>)
+                    t.physical_device_features = get_physical_device_features(device);
+                if constexpr (detail::has_queue_families_v<T>)
+                    t.queue_families = enumerate_queue_families(device);
+                if constexpr (detail::has_extension_properties_v<T>)
+                    t.extension_properties = enumerate_device_extensions(device);
+                return t;
+            });
 
-			// throw runtime error if no physical device is found
-			if (all_user_physical_devices.end() == itr)
-				throw std::runtime_error{ "Cannot select an appropriate physical device!" };
-
-			return *itr;
+            return result;
 		}
 
 	private:
