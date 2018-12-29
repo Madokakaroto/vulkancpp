@@ -52,6 +52,7 @@
 namespace vk
 {
 	// some type defines
+    using physical_device_t = VkPhysicalDevice;
 	using physical_device_properties_t = VkPhysicalDeviceProperties;
 	using physical_device_features_t = VkPhysicalDeviceFeatures;
 	using extension_property_t = VkExtensionProperties;
