@@ -44,7 +44,7 @@ namespace vk
         struct has_queue_families : std::false_type {};
         template <typename T>
         struct has_queue_families<T, std::enable_if_t<std::is_same_v<queue_families_t,
-            decltype(std::declval<T>().queue_family)>>> : std::true_type {};
+            decltype(std::declval<T>().queue_families)>>> : std::true_type {};
         template <typename T>
         inline constexpr bool has_queue_families_v = has_queue_families<T>::value;
 
@@ -52,7 +52,7 @@ namespace vk
         struct has_extension_properties : std::false_type {};
         template <typename T>
         struct has_extension_properties<T, std::enable_if_t<std::is_same_v<extension_properties_t, 
-            decltype(std::declval<T>.extension_properties)>>> : std::true_type {};
+            decltype(std::declval<T>().extension_properties)>>> : std::true_type {};
         template <typename T>
         inline constexpr bool has_extension_properties_v = has_extension_properties<T>::value;
 	}
@@ -95,13 +95,20 @@ namespace vk
         select_result_t select_result_;
 	};*/
 
+    inline static auto is_discrete_gpu() noexcept
+    {
+        return ranges::view::filter(
+            [](auto& physical_device) -> bool {
+            return physical_device.device_properties.deviceType ==
+                VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+        });
+    }
 
-
-    inline const auto is_discrete_gpu = ranges::view::filter(
-        [](auto& physical_device) -> bool {
-        return physical_device.device_properties.deviceType ==
-            VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
-    });
-
-
+    template <typename Pred, typename ... Args>
+    inline static auto physical_device_pipe(Pred const& pred, Args&& ... args) noexcept
+    {
+        return ranges::view::filter([&](auto& physical_device) -> bool {
+            return pred(physical_device, std::forward<Args>(args)...);
+        });
+    }
 }

@@ -7,7 +7,10 @@ if(CMAKE_TOOLCHAIN_FILE)
 include(${CMAKE_TOOLCHAIN_FILE})
 endif(CMAKE_TOOLCHAIN_FILE)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+if(MSVC)
+add_compile_options (/permissive-)
+endif(MSVC)
+
 set(VULKANCPP_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 find_package(Boost COMPONENTS filesystem REQUIRED)

@@ -33,14 +33,17 @@ void init_vulkan(vk::window_t& window)
     auto surface = instance.create_surface(window);
     auto physical_device = instance.select_physical_device<physical_device_config_t>();
 
-    auto count = physical_device | vk::is_discrete_gpu |
-        ranges::view::filter([&surface, &instance](auto& pd) -> bool
-    {
-        return ranges::any_of(ph.queue_families. [&pd](auto const& queue_family) 
-        {
+    std::vector<physical_device_config_t> result = physical_device | vk::is_discrete_gpu() |
+        vk::physical_device_pipe([&instance, &surface](auto& physical_device) {
+        return ranges::any_of(physical_device.queue_families, [&](auto const& queue_family) {
+            if (!instance.get_surface_support(physical_device, surface, queue_family.index))
+                return false;
 
+            if ((queue_family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0)
+                return false;
+
+            physical_device.graphics_famliy = queue_family.index;
+            return true;
         });
-
-        return instance.get_surface_support(pd, surface, ph.queue_families.front(), index);
     });
 }
