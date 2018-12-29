@@ -1,12 +1,24 @@
 # Introduction
-VulkanCpp is a modern c++ wrapper for vulkan library. Inspired by some idea from the Vulkan Cookbook, this library will do some experimental work on simplifying vulkan development. The library is designed to be cross platform, but now it just supports windodws desktop platform.
+VulkanCpp is a modern c++ wrapper for vulkan library. Inspired by some idea from the Vulkan Specification, this library will do some experimental work on abstraction of vulkan full features and simplifying vulkan development. The library is designed to be cross platform, but now it just supports windodws desktop platform with vcpkg.
 
 # Dependencies
 
-## Boost
+ - vs2017 15.9 or later
+ - vcpkg
+ - vulkan sdk 1.1.82
 
-Boost 1.61 or later. Set BOOST_INCLUDE_PATH to the directory of boost includes files, BOOST_LIB_PATH to the installed libraries directory. Make sure the directory that includes all shared libraries is in the %Path% variable.
+ # Compile
+ ## 1. Install boost, glfw, range-v3 and vulkan cmake support  
 
-## vulkan sdk
+```
+vcpkg install boost:x64-windows
+vcpkg install glfw3:x64-windows
+vcpkg install vulkan:x64-windows
+vcpkg install range-v3:x64-windows
+```
 
-Make sure that vulkan-d.dll is available. I`m using Lunarg Vulkan-SDK v1.0.42.0.
+## 2. Make a _build_ directory and build
+```sh
+cd build
+cmake .. -DCMAKE_TOOLCHAIN_FILE=${YOUR_VCPKG_PATH}/scripts/buildsystems/vcpkg.cmake
+```
