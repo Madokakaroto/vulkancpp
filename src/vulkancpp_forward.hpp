@@ -11,6 +11,9 @@
 // boost library
 #include <boost/dll.hpp>
 
+// ranges
+#include <range/v3/all.hpp>
+
 #ifndef VK_NO_PROTOTYPES
 #define VK_NO_PROTOTYPES
 #endif

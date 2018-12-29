@@ -3,11 +3,13 @@
 namespace vk
 {
     /// physical device
-    struct physical_device_config_t
+    struct physical_device_default_config_t
     {
-        physical_device_t                       physical_device;
-        physical_device_properties_t            physical_device_properties;
-        physical_device_features_t              physical_device_features;
+        operator physical_device_t() { return device; }
+
+        physical_device_t                       device;
+        physical_device_properties_t            device_properties;
+        physical_device_features_t              device_features;
         queue_families_t                        queue_families;
         extension_properties_t                  extension_properties;
     };
@@ -18,7 +20,7 @@ namespace vk
         struct has_physical_device : std::false_type {};
         template <typename T>
         struct has_physical_device<T, std::enable_if_t<std::is_same_v<VkPhysicalDevice,
-            decltype(std::declval<T>().physical_device)>>> : std::true_type {};
+            decltype(std::declval<T>().device)>>> : std::true_type {};
         template <typename T>
         inline constexpr bool has_physical_device_v = has_physical_device<T>::value;
 
@@ -26,7 +28,7 @@ namespace vk
         struct has_physical_device_properties : std::false_type {};
         template <typename T>
         struct has_physical_device_properties<T, std::enable_if_t<std::is_same_v<physical_device_properties_t,
-            decltype(std::declval<T>().physical_device_properties)>>> : std::true_type {};
+            decltype(std::declval<T>().device_properties)>>> : std::true_type {};
         template <typename T>
         inline constexpr bool has_physical_device_properties_v = has_physical_device_properties<T>::value;
 
@@ -34,7 +36,7 @@ namespace vk
         struct has_physical_device_features : std::false_type {};
         template <typename T>
         struct has_physical_device_features<T, std::enable_if_t<std::is_same_v<physical_device_features_t,
-            decltype(std::declval<T>().physical_device_features)>>> : std::true_type {};
+            decltype(std::declval<T>().device_features)>>> : std::true_type {};
         template <typename T>
         inline constexpr bool has_physical_device_features_v = has_physical_device_features<T>::value;
 
@@ -55,7 +57,7 @@ namespace vk
         inline constexpr bool has_extension_properties_v = has_extension_properties<T>::value;
 	}
 
-	template <typename T>
+	/*template <typename T>
 	class physical_device_select_result_t
 	{
         template <typename, typename>
@@ -91,5 +93,15 @@ namespace vk
 
     private:
         select_result_t select_result_;
-	};
+	};*/
+
+
+
+    inline const auto is_discrete_gpu = ranges::view::filter(
+        [](auto& physical_device) -> bool {
+        return physical_device.device_properties.deviceType ==
+            VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+    });
+
+
 }

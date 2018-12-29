@@ -173,14 +173,14 @@ namespace vk
 		}
 
 	public:
-		template <typename T = physical_device_config_t>
-		auto select_physical_device() const -> physical_device_select_result_t<T>
+		template <typename T = physical_device_default_config_t>
+		auto select_physical_device() const
 		{
 			// enumerate all physical device pointer
 			auto all_physical_devices = enumerate_physical_devices();
 
 			// transform them to physical device type for user
-            using select_result_t = typename physical_device_select_result_t<T>::select_result_t;
+            using select_result_t = std::vector<T>;
             select_result_t result;
             result.reserve(all_physical_devices.size());
 
@@ -188,11 +188,12 @@ namespace vk
             std::transform(all_physical_devices.cbegin(), all_physical_devices.cend(),
                 std::back_inserter(result), [this](auto device)
             {
-                T t{ device };
+                T t{};
+                t.device = device;
                 if constexpr (detail::has_physical_device_properties_v<T>)
-                    t.physical_device_properties = get_physical_device_properties(device);
+                    t.device_properties = get_physical_device_properties(device);
                 if constexpr (detail::has_physical_device_features_v<T>)
-                    t.physical_device_features = get_physical_device_features(device);
+                    t.device_features = get_physical_device_features(device);
                 if constexpr (detail::has_queue_families_v<T>)
                     t.queue_families = enumerate_queue_families(device);
                 if constexpr (detail::has_extension_properties_v<T>)
