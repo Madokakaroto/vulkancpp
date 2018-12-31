@@ -2,6 +2,8 @@
 
 namespace vk
 {
+    struct null_type {};
+
     struct swallow_t
     {
         template <typename ... T>
@@ -142,4 +144,43 @@ namespace vk
 
     template <typename Callable>
     struct callable_traits : detail::callable_traits_impl<std::remove_const_t<Callable>> {};
+}
+
+// interface generate
+namespace vk
+{
+    // class hierarchy generation
+    template
+    <
+        template <typename, typename> class TE,
+        typename ... Exts
+    >
+    struct generate_extensions_hierarchy;
+
+    template
+    <
+        template <typename, typename> class TE,
+        typename T, typename ... Rests
+    >
+    struct generate_extensions_hierarchy<TE, T, Rests...>
+    {
+        using type = TE<T, typename generate_extensions_hierarchy<TE, Rests...>::type>;
+    };
+
+    template
+    <
+        template <typename, typename> class TE,
+        typename T
+    >
+    struct generate_extensions_hierarchy<TE, T>
+    {
+        using type = TE<T, null_type>;
+    };
+
+    template
+    <
+        template <typename, typename> class TE,
+        typename ... Exts
+    >
+    using generate_extensions_hierarchy_t = typename generate_extensions_hierarchy<TE, Exts...>::type;
 }

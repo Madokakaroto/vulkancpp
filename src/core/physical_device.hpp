@@ -57,50 +57,22 @@ namespace vk
         inline constexpr bool has_extension_properties_v = has_extension_properties<T>::value;
 	}
 
-	/*template <typename T>
-	class physical_device_select_result_t
-	{
-        template <typename, typename>
-        friend class instance_extension;
-
-    public:
-        static_assert(detail::has_physical_device_v<T>);
-        using select_result_t = std::vector<T>;
-        using element_type = T;
-
-    protected:
-        physical_device_select_result_t(select_result_t result)
-            : select_result_(std::move(result))
-        {
-        }
-
-        physical_device_select_result_t(physical_device_select_result_t const&) = delete;
-        physical_device_select_result_t& operator=(physical_device_select_result_t const&) = delete;
-        physical_device_select_result_t(physical_device_select_result_t&&) = default;
-        physical_device_select_result_t& operator=(physical_device_select_result_t&&) = default;
-
-    public:
-        //template <typename F>
-
-        auto count() const
-        {
-            return ranges::all_of(select_result_, [](auto const& r)
-            {
-                return r.physical_device_properties.deviceType == 
-                    VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
-            });
-        }
-
-    private:
-        select_result_t select_result_;
-	};*/
-
     inline static auto is_discrete_gpu() noexcept
     {
         return ranges::view::filter(
             [](auto& physical_device) -> bool {
             return physical_device.device_properties.deviceType ==
                 VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+        });
+    }
+
+    template <typename ... DeviceExts>
+    inline static auto physical_device_has_extensions(DeviceExts ... exts) noexcept
+    {
+        return ranges::view::filter(
+            [exts...](auto const& physical_device) -> bool {
+            return is_extensions_satisfied(get_extension_string_array(exts...),
+                physical_device.extension_properties);
         });
     }
 

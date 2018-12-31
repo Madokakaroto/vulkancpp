@@ -54,14 +54,15 @@
 
 namespace vk
 {
+    // some constant
+    inline constexpr uint32_t invalid_queue_index = static_cast<uint32_t>(-1);
+
 	// some type defines
     using physical_device_t = VkPhysicalDevice;
 	using physical_device_properties_t = VkPhysicalDeviceProperties;
 	using physical_device_features_t = VkPhysicalDeviceFeatures;
 	using extension_property_t = VkExtensionProperties;
 	using queue_family_properties_t = VkQueueFamilyProperties;
-
-	struct null_type {};
 
 	/// platform
 	struct platform_windows
@@ -97,12 +98,13 @@ namespace vk
 
     struct queue_info_t
     {
-        uint32_t                    family_index;
+        uint32_t                    family_index = invalid_queue_index;
         std::vector<float>          priorities;
     };
 
     using queue_families_t = std::vector<queue_family_t>;
     using extension_properties_t = std::vector<extension_property_t>;
+    using queue_create_info_t = std::vector<queue_info_t>;
 
 #if defined _WIN32
 	using platform_type = platform_windows;

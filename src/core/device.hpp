@@ -8,8 +8,8 @@ namespace vk
 	template <>
 	class device_extension<device_core_t>
 	{
-	protected:
-		template <typename Instance>
+    protected:
+        template <typename Instance>
 		device_extension(Instance const& instance, VkDevice device)
 			: device_(device)
 		{
@@ -219,12 +219,21 @@ namespace vk
 	class device : public generate_extensions_hierarchy_t<device_extension_alias, Exts..., device_core_t>
 	{
 		using device_with_extension = generate_extensions_hierarchy_t<device_extension_alias, Exts..., device_core_t>;
-	public:
+
+        template <typename T, typename Base>
+        friend class instance_extension;
+
+	protected:
 		device(device const&) = delete;
 		device(device&&) = default;
 		device& operator= (device const&) = delete;
 		device& operator= (device&&) = default;
 
 		//device
+        template <typename Instance>
+        device(Instance const& instance, VkDevice device)
+            : device_with_extension(instance, device)
+        {}
+
 	};
 }

@@ -37,7 +37,7 @@ namespace vk
 		}
 
 		template <typename ... Exts>
-		auto create_instance(instance_param_t const& param, Exts...) const
+		auto create_instance(instance_param_t const& param, Exts... exts) const
 		{
 			using instance_t = instance<Exts...>;
 			return instance_t{ *this, param };

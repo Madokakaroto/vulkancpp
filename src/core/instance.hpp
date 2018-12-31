@@ -2,41 +2,6 @@
 
 namespace vk
 {
-	// class hierarchy generation
-	template 
-	<
-		template <typename, typename> class TE,
-		typename ... Exts
-	>
-	struct generate_extensions_hierarchy;
-
-	template 
-	<
-		template <typename, typename> class TE,
-		typename T, typename ... Rests
-	>
-	struct generate_extensions_hierarchy<TE, T, Rests...>
-	{
-		using type = TE<T, typename generate_extensions_hierarchy<TE, Rests...>::type>;
-	};
-
-	template
-	<
-		template <typename, typename> class TE,
-		typename T
-	>
-	struct generate_extensions_hierarchy<TE, T>
-	{
-		using type = TE<T, null_type>;
-	};
-
-	template
-	<
-		template <typename, typename> class TE,
-		typename ... Exts
-	>
-	using generate_extensions_hierarchy_t = typename generate_extensions_hierarchy<TE, Exts...>::type;
-
 	// instance  core
 	struct instance_core_t {};
 
@@ -124,7 +89,7 @@ namespace vk
 		}
 
 		template <typename PFN_type>
-		void load_function(std::string const& proc_name, PFN_type& function, VkDevice device) const
+		void load_func(std::string const& proc_name, PFN_type& function, VkDevice device) const
 		{
 			detail::load_funtion(vkGetDeviceProcAddr, proc_name, function, device);
 		}
@@ -172,14 +137,52 @@ namespace vk
 			return queue_families;
 		}
 
-	public:
-		template <typename T = physical_device_default_config_t>
-		auto select_physical_device() const
-		{
-			// enumerate all physical device pointer
-			auto all_physical_devices = enumerate_physical_devices();
+        VkDevice create_logical_device_handle(
+            physical_device_t physical_device,
+            std::vector<queue_info_t> const& queue_infos,
+            std::vector<char const*> const& desired_extensions,
+            physical_device_features_t const& desired_features) const
+        {
+            std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
+            queue_create_infos.reserve(queue_infos.size());
+            std::transform(queue_infos.cbegin(), queue_infos.cend(), std::back_inserter(queue_create_infos),
+                [](auto const& queue_info) {
+                return VkDeviceQueueCreateInfo{
+                    VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,             // VkStructureType                  sType
+                    nullptr,                                                // const void*                      pNext
+                    0,                                                      // VkDeviceQueueCreateFlags         flag
+                    queue_info.family_index,                                // uint32_t                         queueFamilyIndex
+                    static_cast<uint32_t>(queue_info.priorities.size()),    // uint32_t                         queueCount
+                    queue_info.priorities.data()                            // const float*                     pQueuePriorities
+                };
+            });
 
-			// transform them to physical device type for user
+            VkDeviceCreateInfo device_create_info = {
+                VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,                       // VkStructureType                  sType
+                nullptr,                                                    // const void*                      pNext
+                0,                                                          // VkDeviceCreateFlag               flag
+                static_cast<uint32_t>(queue_create_infos.size()),           // uint32_t                         queueCreateInfoCount
+                queue_create_infos.data(),                                  // const VkDeviceQueueCreateInfo*   pQueueCreateInfos
+                0,                                                          // uint32_t                         enabledLayerCount
+                nullptr,                                                    // char const* const*               ppEnableLayerNames
+                static_cast<uint32_t>(desired_extensions.size()),           // uint32_t                         enableExtensionCount
+                desired_extensions.data(),                                  // char const* const*               ppEnableExtensionNames
+                &desired_features                                           // VkPhysicalDeviceFeatures const*  pEnableFeatures
+            };
+
+            VkDevice logical_device = nullptr;
+            vkCreateDevice(physical_device, &device_create_info, nullptr, &logical_device);
+            return logical_device;
+        }
+
+	public:
+		template <typename T = physical_device_default_config_t, typename RngF>
+		auto select_physical_device(RngF&& f) const
+		{
+            // enumerate all physical device pointer
+            auto all_physical_devices = enumerate_physical_devices();
+
+            // transform them to physical device type for user
             using select_result_t = std::vector<T>;
             select_result_t result;
             result.reserve(all_physical_devices.size());
@@ -201,22 +204,43 @@ namespace vk
                 return t;
             });
 
-            return result;
+            try
+            {
+                return ranges::front(f(result));
+            }
+            catch (...)
+            {
+                throw std::runtime_error{ "Failed to find a suitable physical device" };
+            }
 		}
 
-	private:
-		VkInstance			instance_;		// instance object
+        template <typename ... DeviceExts>
+        auto create_logical_device(physical_device_t physical_device, std::vector<queue_info_t> const& queue_infos, DeviceExts ... device_exts) const
+        {
+            // prepare queue create informations
+            auto device_extensions = get_extension_string_array(device_exts...);
+            
+            // create logical device handle
+            auto logical_device_handle = create_logical_device_handle(physical_device, queue_infos, device_extensions, physical_device_features_t{});
 
-		/// instance level functions
-		VULKAN_DECLARE_FUNCTION(vkEnumeratePhysicalDevices);
-		VULKAN_DECLARE_FUNCTION(vkDestroyInstance);
-		VULKAN_DECLARE_FUNCTION(vkEnumerateDeviceExtensionProperties);
-		VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceFeatures);
-		VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceProperties);
-		VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
-		VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceMemoryProperties);
-		VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceFormatProperties);
-		VULKAN_DECLARE_FUNCTION(vkCreateDevice);
-		VULKAN_DECLARE_FUNCTION(vkGetDeviceProcAddr);
+            // create logical device
+            using logical_device_t = device<DeviceExts...>;
+            return logical_device_t{ *this, logical_device_handle };
+        }
+
+    private:
+        VkInstance      instance_;      // instance object
+
+        /// instance level functions
+        VULKAN_DECLARE_FUNCTION(vkEnumeratePhysicalDevices);
+        VULKAN_DECLARE_FUNCTION(vkDestroyInstance);
+        VULKAN_DECLARE_FUNCTION(vkEnumerateDeviceExtensionProperties);
+        VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceFeatures);
+        VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceProperties);
+        VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
+        VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceMemoryProperties);
+        VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceFormatProperties);
+        VULKAN_DECLARE_FUNCTION(vkCreateDevice);
+        VULKAN_DECLARE_FUNCTION(vkGetDeviceProcAddr);
 	};
 }

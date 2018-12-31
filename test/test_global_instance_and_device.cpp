@@ -6,8 +6,7 @@ void init_vulkan(vk::window_t& window);
 struct physical_device_config_t : 
     vk::physical_device_default_config_t
 {
-    std::optional<uint32_t>     graphics_famliy;
-    std::optional<uint32_t>     queue_family;
+    vk::queue_info_t    graphics_queue_info;
 };
 
 int main()
@@ -27,14 +26,21 @@ int main()
 void init_vulkan(vk::window_t& window)
 {
     using namespace std::string_literals;
+
+    // instance vulkan global
     auto& global = vk::global_t::get();
+
+    // create vulkan instance
     vk::instance_param_t param = { "test app"s, "test engine"s };
     auto instance = global.create_instance(param, vk::khr::surface_win32_ext, vk::khr::surface_ext);
-    auto surface = instance.create_surface(window);
-    auto physical_device = instance.select_physical_device<physical_device_config_t>();
 
-    std::vector<physical_device_config_t> result = physical_device | vk::is_discrete_gpu() |
-        vk::physical_device_pipe([&instance, &surface](auto& physical_device) {
+    // create a surface from window
+    auto surface = instance.create_surface(window);
+
+    // filter function for selecting desired gpu
+    auto select_function = vk::is_discrete_gpu() 
+        | vk::physical_device_has_extensions(vk::khr::swapchain_ext)
+        | vk::physical_device_pipe([&instance, &surface](auto& physical_device) {
         return ranges::any_of(physical_device.queue_families, [&](auto const& queue_family) {
             if (!instance.get_surface_support(physical_device, surface, queue_family.index))
                 return false;
@@ -42,8 +48,18 @@ void init_vulkan(vk::window_t& window)
             if ((queue_family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0)
                 return false;
 
-            physical_device.graphics_famliy = queue_family.index;
+            physical_device.graphics_queue_info = { queue_family.index, { 1.0f } };
             return true;
         });
     });
+
+    // select gpu
+    auto physical_device = instance.select_physical_device<physical_device_config_t>(select_function);
+
+    // create logical device
+    auto logical_device = instance.create_logical_device(
+        physical_device.device,                                 // physical_device_t: the physical device
+        { physical_device.graphics_queue_info },                // the information to create queue
+        vk::khr::swapchain_ext                                  // extensions...
+    );
 }
