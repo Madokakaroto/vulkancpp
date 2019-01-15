@@ -2,107 +2,131 @@
 
 namespace vk 
 {
-	/// khr surface extension is an instance extension
-	namespace khr
-	{
-		struct surface_properties_t
-		{
-			VkSurfaceCapabilitiesKHR            capabilities;
-			std::vector<VkSurfaceFormatKHR>     formats;
-			std::vector<VkPresentModeKHR>       present_modes;
-		};
+    /// khr surface extension is an instance extension
+    namespace khr
+    {
+        // surface
+        using surface_t = object<VkSurfaceKHR>;
+        using surface_capabilities_t = VkSurfaceCapabilitiesKHR;
+        using surface_format_t = VkSurfaceFormatKHR;
+        using present_mode_t = VkPresentModeKHR;
 
-		// surface
-		using surface_t = object<VkSurfaceKHR>;
+        struct surface_properties_t
+        {
+            VkSurfaceCapabilitiesKHR            capabilities;
+            std::vector<VkSurfaceFormatKHR>     formats;
+            std::vector<VkPresentModeKHR>       present_modes;
+        };
 
-		constexpr struct surface_ext_t
-		{
-			static char const* name() noexcept
-			{
-				return VK_KHR_SURFACE_EXTENSION_NAME;
-			}
-		} surface_ext;
-	}
+        constexpr struct surface_ext_t
+        {
+            static char const* name() noexcept
+            {
+                return VK_KHR_SURFACE_EXTENSION_NAME;
+            }
+        } surface_ext;
+    }
 
-	template <typename Base>
-	class instance_extension<khr::surface_ext_t, Base> : public Base
-	{
-	protected:
-		instance_extension(instance_extension const&) = delete;
-		instance_extension& operator=(instance_extension const&) = delete;
-		instance_extension(instance_extension&&) = default;
-		instance_extension& operator=(instance_extension&&) = default;
+    template <typename Base>
+    class instance_extension<khr::surface_ext_t, Base> : public Base
+    {
+    protected:
+        instance_extension(instance_extension const&) = delete;
+        instance_extension& operator=(instance_extension const&) = delete;
+        instance_extension(instance_extension&&) = default;
+        instance_extension& operator=(instance_extension&&) = default;
 
-		instance_extension(global_t const& global, VkInstance instance)
-			: Base(global, instance)
-		{
-			assert(this->get_instance() == instance);
-			VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR);
-			VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
-			VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
-			VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
-			VULKAN_LOAD_INSTNACE_FUNCTION(vkDestroySurfaceKHR);
-		}
+        instance_extension(global_t const& global, VkInstance instance)
+            : Base(global, instance)
+        {
+            assert(this->get_instance() == instance);
+            VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR);
+            VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
+            VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
+            VULKAN_LOAD_INSTNACE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
+            VULKAN_LOAD_INSTNACE_FUNCTION(vkDestroySurfaceKHR);
+        }
 
-		void destory_surface(VkSurfaceKHR surface) const
-		{
-			if (nullptr != surface)
-				vkDestroySurfaceKHR(this->get_instance(), surface, nullptr);
-		}
+        void destory_surface(VkSurfaceKHR surface) const
+        {
+            if (nullptr != surface)
+                vkDestroySurfaceKHR(this->get_instance(), surface, nullptr);
+        }
 
-	public:
-		auto get_surface_properties(physical_device_t const& device, khr::surface_t const& surface) const
-		{
-			uint32_t count{ 0 };
-			khr::surface_properties_t properties;
-			vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.get_device(), surface.get_object(), &properties.capabilities);
-			vkGetPhysicalDeviceSurfaceFormatsKHR(device.get_device(), surface.get_object(), &count, nullptr);
-			if (count > 0)
-			{
-				properties.formats.resize(count);
-				vkGetPhysicalDeviceSurfaceFormatsKHR(device.get_device(), surface.get_object(), &count, properties.formats.data());
-			}
-			vkGetPhysicalDeviceSurfacePresentModesKHR(device.get_device(), surface.get_object(), &count, nullptr);
-			if (count > 0)
-			{
-				properties.present_modes.resize(count);
-				vkGetPhysicalDeviceSurfacePresentModesKHR(device.get_device(), surface.get_object(), &count, properties.present_modes.data());
-			}
+    public:
+        auto get_properties(physical_device_t const& device, khr::surface_t const& surface) const
+            -> khr::surface_properties_t
+        {
+            return {
+                get_capabilities(device, surface),
+                get_formats(device, surface),
+                get_present_modes(device, surface)
+            };
+        }
 
-			return properties;
-		}
+        auto get_capabilities(physical_device_t device, khr::surface_t const& surface) const
+        {
+            khr::surface_capabilities_t surface_capabilities = { 0 };
+            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface.get_object(), &surface_capabilities);
+            return surface_capabilities;
+        }
 
-		bool get_surface_support(physical_device_t device, khr::surface_t const& surface, uint32_t queue_index) const
-		{
-			VkBool32 result;
-			vkGetPhysicalDeviceSurfaceSupportKHR(device, queue_index, surface.get_object(), &result);
-			return 0 != result;
-		}
+        auto get_formats(physical_device_t device, khr::surface_t const& surface) const
+        {
+            uint32_t count{ 0 };
+            std::vector<khr::surface_format_t> surface_formats;
+            vkGetPhysicalDeviceSurfaceFormatsKHR(device.get_device(), surface.get_object(), &count, nullptr);
+            if (count > 0)
+            {
+                surface_formats.resize(count);
+                vkGetPhysicalDeviceSurfaceFormatsKHR(device.get_device(), surface.get_object(), &count, surface_formats.data());
+            }
+            return surface_formats;
+        }
 
-	private:
-		VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR);
-		VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
-		VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
-		VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
-		VULKAN_DECLARE_FUNCTION(vkDestroySurfaceKHR);
-	};
+        auto get_present_modes(physical_device_t device, khr::surface_t const& surface) const
+        {
+            uint32_t count{ 0 };
+            std::vector<khr::present_mode_t> present_modes;
+            vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface.get_object(), &count, nullptr);
+            if (count > 0)
+            {
+                present_modes.resize(count);
+                vkGetPhysicalDeviceSurfacePresentModesKHR(device.get_device(), surface.get_object(), &count, present_modes.data());
+            }
+            return present_modes;
+        }
+
+        bool get_support(physical_device_t device, khr::surface_t const& surface, uint32_t queue_index) const
+        {
+            VkBool32 result;
+            vkGetPhysicalDeviceSurfaceSupportKHR(device, queue_index, surface.get_object(), &result);
+            return 0 != result;
+        }
+
+    private:
+        VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR);
+        VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
+        VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
+        VULKAN_DECLARE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
+        VULKAN_DECLARE_FUNCTION(vkDestroySurfaceKHR);
+    };
 
 
 #ifdef VK_USE_PLATFORM_WIN32_KHR
 #include <Windows.h>
-	/// KHR win32 surface extension is an instance extension
-	namespace khr
-	{
-		constexpr struct surface_win32_ext_t
-		{
+    /// KHR win32 surface extension is an instance extension
+    namespace khr
+    {
+        constexpr struct surface_win32_ext_t
+        {
             using native_handle_t = HWND;
-
-			static char const* name() noexcept
-			{
-				return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
-			}
-		} surface_win32_ext;
-	}
+            static char const* name() noexcept
+            {
+                return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
+            }
+        } surface_win32_ext;
+    }
 
 	template <typename Base>
 	class instance_extension<khr::surface_win32_ext_t, Base> : public Base

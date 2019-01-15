@@ -6,7 +6,9 @@ void init_vulkan(vk::window_t& window);
 struct physical_device_config_t : 
     vk::physical_device_default_config_t
 {
-    vk::queue_info_t    graphics_queue_info;
+    vk::queue_info_t            graphics_queue_info;
+    vk::khr::present_mode_t     present_mode;
+    vk::khr::surface_format_t   desired_format;
 };
 
 int main()
@@ -20,7 +22,7 @@ int main()
     init_vulkan(window);
 
     app.run(window);
-	return 0;
+    return 0;
 }
 
 void init_vulkan(vk::window_t& window)
@@ -41,16 +43,18 @@ void init_vulkan(vk::window_t& window)
     auto select_function = vk::is_discrete_gpu() 
         | vk::physical_device_has_extensions(vk::khr::swapchain_ext)
         | vk::physical_device_pipe([&instance, &surface](auto& physical_device) {
-        return ranges::any_of(physical_device.queue_families, [&](auto const& queue_family) {
-            if (!instance.get_surface_support(physical_device, surface, queue_family.index))
-                return false;
+            return ranges::any_of(physical_device.queue_families, [&](auto const& queue_family) {
+                if (!instance.get_support(physical_device, surface, queue_family.index))
+                    return false;
 
-            if ((queue_family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0)
-                return false;
+                if ((queue_family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0)
+                    return false;
 
-            physical_device.graphics_queue_info = { queue_family.index, { 1.0f } };
-            return true;
-        });
+                physical_device.graphics_queue_info = { queue_family.index, { 1.0f } };
+                return true;
+            });
+    }) | vk::physical_device_pipe([&instance, &surface](auto& physical_device) {
+        return true;
     });
 
     // select gpu
