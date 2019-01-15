@@ -10,6 +10,7 @@ namespace vk
         using surface_capabilities_t = VkSurfaceCapabilitiesKHR;
         using surface_format_t = VkSurfaceFormatKHR;
         using present_mode_t = VkPresentModeKHR;
+        using color_space_t = VkColorSpaceKHR;
 
         struct surface_properties_t
         {

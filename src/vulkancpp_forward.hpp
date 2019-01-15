@@ -63,6 +63,8 @@ namespace vk
 	using physical_device_features_t = VkPhysicalDeviceFeatures;
 	using extension_property_t = VkExtensionProperties;
 	using queue_family_properties_t = VkQueueFamilyProperties;
+    using extent_2d_t = VkExtent2D;
+    using format_t = VkFormat;
 
 	/// platform
 	struct platform_windows
