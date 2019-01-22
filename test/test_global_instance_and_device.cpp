@@ -6,10 +6,14 @@ void init_vulkan(vk::window_t& window);
 struct physical_device_config_t : 
     vk::physical_device_default_config_t
 {
-    vk::queue_info_t            graphics_queue_info;
-    vk::extent_2d_t             present_image_size;
-    vk::khr::present_mode_t     present_mode;
-    vk::khr::surface_format_t   desired_format;
+    vk::queue_info_t                    graphics_queue_info;
+};
+
+struct swapchain_config_t
+{
+    vk::extent_2d_t                     present_image_size;
+    vk::khr::present_mode_t             present_mode = VK_PRESENT_MODE_FIFO_KHR;
+    vk::khr::surface_format_t           desired_format;
 };
 
 int main()
@@ -40,9 +44,16 @@ void init_vulkan(vk::window_t& window)
     // create a surface from window
     auto surface = instance.create_surface(window);
 
+    // swapchain configuration
+    swapchain_config_t swapchain_config = { 0 };
+
     // filter function for selecting desired gpu
-    auto select_function = vk::is_discrete_gpu() 
+    auto select_function = 
+        // 1. select only descrete gpus
+        vk::is_discrete_gpu()
+        // 2. select physical device that support swapchain KHR extension
         | vk::physical_device_has_extensions(vk::khr::swapchain_ext)
+        // 3. select physical device of which the one of the queue famlilies are graphics queue and support a specific surface. 
         | vk::physical_device_pipe([&instance, &surface](auto& physical_device) {
         return ranges::any_of(physical_device.queue_families, [&](auto const& queue_family) {
             if (!instance.get_support(physical_device, surface, queue_family.index))
@@ -54,9 +65,23 @@ void init_vulkan(vk::window_t& window)
             physical_device.graphics_queue_info = { queue_family.index, { 1.0f } };
             return true;
         });
-    }) | vk::physical_device_pipe([&instance, &surface](auto& physical_device) {
-
-        return true;
+        // 4. select the physical device that support the desired format with a specific surface
+    }) | vk::physical_device_pipe([&instance, &surface, &swapchain_config](auto& physical_device) {
+        if (ranges::any_of(instance.get_formats(physical_device, surface), [](auto const& format)
+        {
+            return format.format == VK_FORMAT_B8G8R8A8_UNORM &&
+                format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        }))
+        {
+            swapchain_config.desired_format =
+            {
+                VK_FORMAT_B8G8R8A8_UNORM,
+                VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+            };
+            return true;
+            return true;
+        }
+        return false;
     });
 
     // select gpu
@@ -68,4 +93,19 @@ void init_vulkan(vk::window_t& window)
         { physical_device.graphics_queue_info },                // the information to create queue
         vk::khr::swapchain_ext                                  // extensions...
     );
+
+    // select present mode
+    {
+        auto present_modes = instance.get_present_modes(physical_device, surface);
+        auto itr = ranges::find_if(present_modes, [](auto const& present_mode)
+        {
+            return present_mode == VK_FORMAT_B8G8R8A8_UNORM &&
+                present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR;
+        });
+
+        if (itr != ranges::end(present_modes))
+        {
+            swapchain_config.present_mode = *itr;
+        }
+    }
 }

@@ -14,9 +14,9 @@ namespace vk
 
         struct surface_properties_t
         {
-            VkSurfaceCapabilitiesKHR            capabilities;
-            std::vector<VkSurfaceFormatKHR>     formats;
-            std::vector<VkPresentModeKHR>       present_modes;
+            surface_capabilities_t            capabilities;
+            std::vector<surface_format_t>     formats;
+            std::vector<present_mode_t>       present_modes;
         };
 
         constexpr struct surface_ext_t
@@ -76,11 +76,11 @@ namespace vk
         {
             uint32_t count{ 0 };
             std::vector<khr::surface_format_t> surface_formats;
-            vkGetPhysicalDeviceSurfaceFormatsKHR(device.get_device(), surface.get_object(), &count, nullptr);
+            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface.get_object(), &count, nullptr);
             if (count > 0)
             {
                 surface_formats.resize(count);
-                vkGetPhysicalDeviceSurfaceFormatsKHR(device.get_device(), surface.get_object(), &count, surface_formats.data());
+                vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface.get_object(), &count, surface_formats.data());
             }
             return surface_formats;
         }
@@ -93,7 +93,7 @@ namespace vk
             if (count > 0)
             {
                 present_modes.resize(count);
-                vkGetPhysicalDeviceSurfacePresentModesKHR(device.get_device(), surface.get_object(), &count, present_modes.data());
+                vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface.get_object(), &count, present_modes.data());
             }
             return present_modes;
         }

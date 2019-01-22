@@ -223,6 +223,24 @@ namespace vk
         template <typename T, typename Base>
         friend class instance_extension;
 
+    public:
+        class queue_t
+        {
+        protected:
+            explicit queue_t(VkQueue queue) : queue_(queue_) {}
+
+        public:
+            queue_t(queue_t const&) = default;
+            queue_t(queue_t&&) = default;
+            queue_t& operator= (queue_t const&) = default;
+            queue_t& operator= (queue_t&&) = default;
+
+        public:
+
+        private:
+            VkQueue queue_;
+        };
+
 	protected:
 		device(device const&) = delete;
 		device(device&&) = default;
