@@ -5,15 +5,15 @@ namespace vk
 	// instance  core
 	struct instance_core_t {};
 
-	template <typename T, typename Base>
-	using instance_extension_alias = instance_extension<T, Base>;
+	template <typename T, typename TT, typename Base>
+	using instance_extension_alias = instance_extension<T, TT, Base>;
 
 	// instance wrapper
 	template <typename ... Exts>
 	class instance
-		: public generate_extensions_hierarchy_t<instance_extension_alias, Exts..., instance_core_t>
+		: public generate_extensions_hierarchy_t<instance<Exts...>, instance_extension_alias, Exts..., instance_core_t>
 	{
-		using instance_with_extensions = typename generate_extensions_hierarchy<instance_extension_alias, Exts..., instance_core_t>::type;
+		using instance_with_extensions = typename generate_extensions_hierarchy<instance, instance_extension_alias, Exts..., instance_core_t>::type;
 
 	public:
 		instance(instance const&) = delete;
@@ -36,14 +36,16 @@ namespace vk
 		instance_param_t const param_;
 	};
 
-	template <>
-	class instance_extension<instance_core_t, null_type>
+	template <typename TT>
+	class instance_extension<instance_core_t, TT, null_type>
 	{
-		template <typename, typename>
+		template <typename, typename, typename>
 		friend class device_extension;
 
 		template <typename...>
 		friend class device;
+
+        using this_type = TT;
 
 	protected:
 		instance_extension(instance_extension const&) = delete;
@@ -71,6 +73,16 @@ namespace vk
 			if (nullptr != instance_)
 				vkDestroyInstance(instance_, nullptr);
 		}
+
+        this_type& get() noexcept
+        {
+            return *static_cast<this_type*>(this);
+        }
+
+        this_type const& get() const noexcept
+        {
+            return *static_cast<this_type const*>(this);
+        }
 
 		VkInstance get_instance() const noexcept
 		{

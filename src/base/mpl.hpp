@@ -152,35 +152,39 @@ namespace vk
     // class hierarchy generation
     template
     <
-        template <typename, typename> class TE,
+        typename TT,
+        template <typename, typename, typename> class TE,
         typename ... Exts
     >
     struct generate_extensions_hierarchy;
 
     template
     <
-        template <typename, typename> class TE,
+        typename TT,
+        template <typename, typename, typename> class TE,
         typename T, typename ... Rests
     >
-    struct generate_extensions_hierarchy<TE, T, Rests...>
+    struct generate_extensions_hierarchy<TT, TE, T, Rests...>
     {
-        using type = TE<T, typename generate_extensions_hierarchy<TE, Rests...>::type>;
+        using type = TE<T, TT, typename generate_extensions_hierarchy<TT, TE, Rests...>::type>;
     };
 
     template
     <
-        template <typename, typename> class TE,
+        typename TT,
+        template <typename, typename, typename> class TE,
         typename T
     >
-    struct generate_extensions_hierarchy<TE, T>
+    struct generate_extensions_hierarchy<TT, TE, T>
     {
-        using type = TE<T, null_type>;
+        using type = TE<T, TT, null_type>;
     };
 
     template
     <
-        template <typename, typename> class TE,
+        typename TT,
+        template <typename, typename, typename> class TE,
         typename ... Exts
     >
-    using generate_extensions_hierarchy_t = typename generate_extensions_hierarchy<TE, Exts...>::type;
+    using generate_extensions_hierarchy_t = typename generate_extensions_hierarchy<TT, TE, Exts...>::type;
 }

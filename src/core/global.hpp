@@ -20,7 +20,7 @@ namespace vk
 	// vulkan library
 	class global_t
 	{
-		template <typename, typename>
+		template <typename, typename, typename>
 		friend class instance_extension;
 
 		template <typename ...>

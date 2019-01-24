@@ -117,13 +117,13 @@ namespace vk
 #endif
 
 	// forward declaration
-	template <typename T, typename Base>
+	template <typename T, typename TT, typename Base>
     class instance_extension;
 
 	template <typename ... Exts>
 	class instance;
 
-	template <typename T, typename Base = null_type>
+	template <typename T, typename TT, typename Base>
     class device_extension;
 
 	template <typename ... Exts>

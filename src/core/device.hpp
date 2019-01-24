@@ -5,9 +5,11 @@ namespace vk
 	/// logical device
 	struct device_core_t {};
 
-	template <>
-	class device_extension<device_core_t>
+	template <typename TT>
+	class device_extension<TT, device_core_t, null_type>
 	{
+        using this_type = TT;
+
     protected:
         template <typename Instance>
 		device_extension(Instance const& instance, VkDevice device)
@@ -108,6 +110,16 @@ namespace vk
 			if (nullptr != device_)
 				vkDestroyDevice(device_, nullptr);
 		}
+
+        this_type& get() noexcept
+        {
+            return *static_cast<this_type*>(this);
+        }
+
+        this_type const& get() const noexcept
+        {
+            return *static_cast<this_type const*>(this);
+        }
 
 		device_extension(device_extension const&) = delete;
 		device_extension& operator=(device_extension const&) = delete;
@@ -211,16 +223,16 @@ namespace vk
 		VULKAN_DECLARE_FUNCTION(vkCmdClearAttachments);
 	};
 
-	template <typename T, typename Base>
-	using device_extension_alias = device_extension<T, Base>;
+	template <typename T, typename TT, typename Base>
+	using device_extension_alias = device_extension<T, TT, Base>;
 
 	// logical device
 	template <typename ... Exts>
-	class device : public generate_extensions_hierarchy_t<device_extension_alias, Exts..., device_core_t>
+	class device : public generate_extensions_hierarchy_t<device<Exts...>, device_extension_alias, Exts..., device_core_t>
 	{
-		using device_with_extension = generate_extensions_hierarchy_t<device_extension_alias, Exts..., device_core_t>;
+		using device_with_extension = generate_extensions_hierarchy_t<device, device_extension_alias, Exts..., device_core_t>;
 
-        template <typename T, typename Base>
+        template <typename T, typename TT, typename Base>
         friend class instance_extension;
 
     public:

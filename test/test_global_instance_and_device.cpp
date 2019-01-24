@@ -9,13 +9,6 @@ struct physical_device_config_t :
     vk::queue_info_t                    graphics_queue_info;
 };
 
-struct swapchain_config_t
-{
-    vk::extent_2d_t                     present_image_size;
-    vk::khr::present_mode_t             present_mode = VK_PRESENT_MODE_FIFO_KHR;
-    vk::khr::surface_format_t           desired_format;
-};
-
 int main()
 {
     size_t width = 1280;
@@ -34,26 +27,26 @@ void init_vulkan(vk::window_t& window)
 {
     using namespace std::string_literals;
 
-    // instance vulkan global
+    // 1. instance vulkan global
     auto& global = vk::global_t::get();
 
-    // create vulkan instance
+    // 2. create vulkan instance
     vk::instance_param_t param = { "test app"s, "test engine"s };
     auto instance = global.create_instance(param, vk::khr::surface_win32_ext, vk::khr::surface_ext);
 
-    // create a surface from window
+    // 3. create a surface from window
     auto surface = instance.create_surface(window);
 
-    // swapchain configuration
-    swapchain_config_t swapchain_config = { 0 };
+    // 4. swapchain configuration
+    vk::khr::swapchain_config_t swapchain_config{};
 
-    // filter function for selecting desired gpu
+    // 5. filter function for selecting desired gpu
     auto select_function = 
-        // 1. select only descrete gpus
+        // 5.1. select only descrete gpus
         vk::is_discrete_gpu()
-        // 2. select physical device that support swapchain KHR extension
+        // 5.2. select physical device that support swapchain KHR extension
         | vk::physical_device_has_extensions(vk::khr::swapchain_ext)
-        // 3. select physical device of which the one of the queue famlilies are graphics queue and support a specific surface. 
+        // 5.3 select physical device of which the one of the queue famlilies are graphics queue and support a specific surface. 
         | vk::physical_device_pipe([&instance, &surface](auto& physical_device) {
         return ranges::any_of(physical_device.queue_families, [&](auto const& queue_family) {
             if (!instance.get_support(physical_device, surface, queue_family.index))
@@ -65,7 +58,7 @@ void init_vulkan(vk::window_t& window)
             physical_device.graphics_queue_info = { queue_family.index, { 1.0f } };
             return true;
         });
-        // 4. select the physical device that support the desired format with a specific surface
+        // 5.4 select the physical device that support the desired format with a specific surface
     }) | vk::physical_device_pipe([&instance, &surface, &swapchain_config](auto& physical_device) {
         if (ranges::any_of(instance.get_formats(physical_device, surface), [](auto const& format)
         {
@@ -73,28 +66,27 @@ void init_vulkan(vk::window_t& window)
                 format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
         }))
         {
-            swapchain_config.desired_format =
+            swapchain_config.present_image_format =
             {
                 VK_FORMAT_B8G8R8A8_UNORM,
                 VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
             };
             return true;
-            return true;
         }
         return false;
     });
 
-    // select gpu
+    // 6. select physical device
     auto physical_device = instance.select_physical_device<physical_device_config_t>(select_function);
 
-    // create logical device
+    // 7. create logical device with swapchain khr extension
     auto logical_device = instance.create_logical_device(
         physical_device.device,                                 // physical_device_t: the physical device
         { physical_device.graphics_queue_info },                // the information to create queue
         vk::khr::swapchain_ext                                  // extensions...
     );
 
-    // select present mode
+    // 8. select present mode
     {
         auto present_modes = instance.get_present_modes(physical_device, surface);
         auto itr = ranges::find_if(present_modes, [](auto const& present_mode)
@@ -108,4 +100,13 @@ void init_vulkan(vk::window_t& window)
             swapchain_config.present_mode = *itr;
         }
     }
+
+    // 9. select swapchain image size
+    {
+        auto swapchain_capabilities = instance.get_capabilities(physical_device, surface);
+        swapchain_config.present_image_size = swapchain_capabilities.currentExtent;
+    }
+
+    // 10. create swap chain
+    auto swapchain = logical_device.create_swapchain(surface, swapchain_config);
 }
