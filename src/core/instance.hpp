@@ -74,11 +74,6 @@ namespace vk
 				vkDestroyInstance(instance_, nullptr);
 		}
 
-        this_type& get() noexcept
-        {
-            return *static_cast<this_type*>(this);
-        }
-
         this_type const& get() const noexcept
         {
             return *static_cast<this_type const*>(this);

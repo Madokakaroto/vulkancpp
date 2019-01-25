@@ -154,12 +154,12 @@ namespace vk
 
 	public:
 
-        auto create_surface(window_t const& window)
+        auto create_surface(window_t const& window) const
         {
             return create_surface(window.get_app_handle(), window.get_native_handle());
         }
 
-		auto create_surface(app_handle_t app_handle, native_handle_t window_handle)
+		auto create_surface(app_handle_t app_handle, native_handle_t window_handle) const
 		{
 			VkWin32SurfaceCreateInfoKHR create_info =
 			{
@@ -172,11 +172,9 @@ namespace vk
 
 			VkSurfaceKHR surface;
 			vkCreateWin32SurfaceKHR(this->get_instance(), &create_info, nullptr, &surface);
-			return khr::surface_t{ surface, 
-                [this](VkSurfaceKHR surface) { 
-                    //this->get().destroy_surface(surface);
-                }
-            };
+			return khr::surface_t{ surface, [this](VkSurfaceKHR surface) { 
+                this->get().destory_surface(surface);
+            } };
 		}
 
 	private:
@@ -238,12 +236,10 @@ namespace vk
             };
 
             VkSwapchainKHR swapchain;
-            //vkCreateSwapchainKHR(this->get_device(), &create_info, nullptr, &swapchain);
-            //return khr::swapchain_t{ swapchain, 
-            //    [this](VkSwapchainKHR swapchain) { 
-            //        vkDestroySwapchainKHR(this->get_device(), swapchain, nullptr); 
-            //    } 
-            //};
+            vkCreateSwapchainKHR(this->get_device(), &create_info, nullptr, &swapchain);
+            return khr::swapchain_t{ swapchain,  [this](VkSwapchainKHR swapchain) { 
+                vkDestroySwapchainKHR(this->get_device(), swapchain, nullptr); 
+            } };
         }
 
 	private:
