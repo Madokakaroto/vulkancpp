@@ -4,7 +4,7 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #elif defined(_MSC_VER)
 #define GLFW_EXPOSE_NATIVE_WIN32
-#endif		// end of mingw32
+#endif        // end of mingw32
 #elif defined(WIN32)
 #define GLFW_EXPOSE_NATIVE_WIN32
 #endif

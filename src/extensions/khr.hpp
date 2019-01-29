@@ -131,108 +131,111 @@ namespace vk
         } surface_win32_ext;
     }
 
-	template <typename TT, typename Base>
-	class instance_extension<khr::surface_win32_ext_t, TT, Base> : public Base
-	{
+    template <typename TT, typename Base>
+    class instance_extension<khr::surface_win32_ext_t, TT, Base> : public Base
+    {
         using this_type = TT;
 
-	protected:
+    protected:
         using native_handle_t = khr::surface_win32_ext_t::native_handle_t;
         using app_handle_t = HINSTANCE;
 
-		instance_extension(instance_extension const&) = delete;
-		instance_extension& operator=(instance_extension const&) = delete;
-		instance_extension(instance_extension&&) = default;
-		instance_extension& operator=(instance_extension&&) = default;
+        instance_extension(instance_extension const&) = delete;
+        instance_extension& operator=(instance_extension const&) = delete;
+        instance_extension(instance_extension&&) = default;
+        instance_extension& operator=(instance_extension&&) = default;
 
-		instance_extension(global_t const& global, VkInstance instance)
-			: Base(global, instance)
-		{
-			assert(this->get_instance() == instance);
-			VULKAN_LOAD_INSTNACE_FUNCTION(vkCreateWin32SurfaceKHR);
-		}
+        instance_extension(global_t const& global, VkInstance instance)
+            : Base(global, instance)
+        {
+            assert(this->get_instance() == instance);
+            VULKAN_LOAD_INSTNACE_FUNCTION(vkCreateWin32SurfaceKHR);
+        }
 
-	public:
+    public:
 
         auto create_surface(window_t const& window) const
         {
             return create_surface(window.get_app_handle(), window.get_native_handle());
         }
 
-		auto create_surface(app_handle_t app_handle, native_handle_t window_handle) const
-		{
-			VkWin32SurfaceCreateInfoKHR create_info =
-			{
-				VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,    // VkStructureType                 sType
-				nullptr,                                            // const void*                     pNext
-				0,                                                  // VkWin32SurfaceCreateFlagsKHR    flags
+        auto create_surface(app_handle_t app_handle, native_handle_t window_handle) const
+        {
+            VkWin32SurfaceCreateInfoKHR create_info =
+            {
+                VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,    // VkStructureType                 sType
+                nullptr,                                            // const void*                     pNext
+                0,                                                  // VkWin32SurfaceCreateFlagsKHR    flags
                 app_handle,                                         // HINSTANCE                       hinstance
                 window_handle                                       // HWND                            hwnd
-			};
+            };
 
-			VkSurfaceKHR surface;
-			vkCreateWin32SurfaceKHR(this->get_instance(), &create_info, nullptr, &surface);
-			return khr::surface_t{ surface, [this](VkSurfaceKHR surface) { 
+            VkSurfaceKHR surface;
+            vkCreateWin32SurfaceKHR(this->get_instance(), &create_info, nullptr, &surface);
+            return khr::surface_t{ surface, [this](VkSurfaceKHR surface) { 
                 this->get().destory_surface(surface);
             } };
-		}
+        }
 
-	private:
-		VULKAN_DECLARE_FUNCTION(vkCreateWin32SurfaceKHR);
-	};
+    private:
+        VULKAN_DECLARE_FUNCTION(vkCreateWin32SurfaceKHR);
+    };
 #endif
 
-	// KHR swapchain extension is a device extension
-	namespace khr
-	{
-		constexpr struct swapchain_ext_t
-		{
-			static char const* name() noexcept
-			{
-				return VK_KHR_SWAPCHAIN_EXTENSION_NAME;
-			}
-		} swapchain_ext;
+    // KHR swapchain extension is a device extension
+    namespace khr
+    {
+        constexpr struct swapchain_ext_t
+        {
+            static char const* name() noexcept
+            {
+                return VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+            }
+        } swapchain_ext;
 
         struct swapchain_config_t
         {
             uint32_t            present_image_count = 2;
-            extent_2d_t         present_image_size;
+            extent_2d_t         present_image_size = { 0, 0 };
             present_mode_t      present_mode = VK_PRESENT_MODE_FIFO_KHR;
-            surface_format_t    present_image_format;
+            surface_format_t    present_image_format = { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
         };
 
         using swapchain_t = object<VkSwapchainKHR>;
-	}
+    }
 
-	template <typename TT, typename Base>
-	class device_extension<khr::swapchain_ext_t, TT, Base> : public Base
-	{
+    template <typename TT, typename Base>
+    class device_extension<khr::swapchain_ext_t, TT, Base> : public Base
+    {
         using this_type = TT;
 
-	public:
-		template <typename Instance>
-		device_extension(Instance const& instance, VkDevice device)
-			: Base(instance, device)
-		{
-			assert(this->get_device() == device);
-			VULKAN_LOAD_DEVICE_FUNCTION(vkCreateSwapchainKHR);
-			VULKAN_LOAD_DEVICE_FUNCTION(vkGetSwapchainImagesKHR);
-			VULKAN_LOAD_DEVICE_FUNCTION(vkAcquireNextImageKHR);
-			VULKAN_LOAD_DEVICE_FUNCTION(vkQueuePresentKHR);
-			VULKAN_LOAD_DEVICE_FUNCTION(vkDestroySwapchainKHR);
-		}
+    public:
+        template <typename Instance>
+        device_extension(Instance const& instance, VkDevice device)
+            : Base(instance, device)
+        {
+            assert(this->get_device() == device);
+            VULKAN_LOAD_DEVICE_FUNCTION(vkCreateSwapchainKHR);
+            VULKAN_LOAD_DEVICE_FUNCTION(vkGetSwapchainImagesKHR);
+            VULKAN_LOAD_DEVICE_FUNCTION(vkAcquireNextImageKHR);
+            VULKAN_LOAD_DEVICE_FUNCTION(vkQueuePresentKHR);
+            VULKAN_LOAD_DEVICE_FUNCTION(vkDestroySwapchainKHR);
+        }
 
         auto create_swapchain(khr::surface_t const& surface, khr::swapchain_config_t const& config)
         {
             VkSwapchainCreateInfoKHR create_info = 
             {
-                VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-                nullptr,
-                0,
-                surface.get_object(),
-                config.present_image_count,
-                config.present_image_format.format,
-                config.present_image_format.colorSpace
+                VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,    // VkStructureType                  sType
+                nullptr,                                        // const void*                      pNext
+                0,                                              // VkSwapchainCreateFlagsKHR        flags
+                surface.get_object(),                           // VkSurfaceKHR                     surface
+                config.present_image_count,                     // uint32_t                         minImageCount
+                config.present_image_format.format,             // VkFormat                         imageFormat
+                config.present_image_format.colorSpace,         // VkColorSpaceKHR                  imageColorSpace
+                config.present_image_size,                      // VkExtent2D                       imageExtent
+                1,                                              // uint32_t                         imageArrayLayers
+
             };
 
             VkSwapchainKHR swapchain;
@@ -242,11 +245,11 @@ namespace vk
             } };
         }
 
-	private:
-		VULKAN_DECLARE_FUNCTION(vkCreateSwapchainKHR);
-		VULKAN_DECLARE_FUNCTION(vkGetSwapchainImagesKHR);
-		VULKAN_DECLARE_FUNCTION(vkAcquireNextImageKHR);
-		VULKAN_DECLARE_FUNCTION(vkQueuePresentKHR);
-		VULKAN_DECLARE_FUNCTION(vkDestroySwapchainKHR);
-	};
+    private:
+        VULKAN_DECLARE_FUNCTION(vkCreateSwapchainKHR);
+        VULKAN_DECLARE_FUNCTION(vkGetSwapchainImagesKHR);
+        VULKAN_DECLARE_FUNCTION(vkAcquireNextImageKHR);
+        VULKAN_DECLARE_FUNCTION(vkQueuePresentKHR);
+        VULKAN_DECLARE_FUNCTION(vkDestroySwapchainKHR);
+    };
 }

@@ -57,33 +57,33 @@ namespace vk
     // some constant
     inline constexpr uint32_t invalid_queue_index = static_cast<uint32_t>(-1);
 
-	// some type defines
+    // some type defines
     using physical_device_t = VkPhysicalDevice;
-	using physical_device_properties_t = VkPhysicalDeviceProperties;
-	using physical_device_features_t = VkPhysicalDeviceFeatures;
-	using extension_property_t = VkExtensionProperties;
-	using queue_family_properties_t = VkQueueFamilyProperties;
+    using physical_device_properties_t = VkPhysicalDeviceProperties;
+    using physical_device_features_t = VkPhysicalDeviceFeatures;
+    using extension_property_t = VkExtensionProperties;
+    using queue_family_properties_t = VkQueueFamilyProperties;
     using extent_2d_t = VkExtent2D;
     using format_t = VkFormat;
 
-	/// platform
-	struct platform_windows
-	{
-		static std::string const dynamic_library() noexcept
-		{
-			using namespace std::string_literals;
-			return "vulkan-1.dll";
-		}
-	};
+    /// platform
+    struct platform_windows
+    {
+        static std::string const dynamic_library() noexcept
+        {
+            using namespace std::string_literals;
+            return "vulkan-1.dll";
+        }
+    };
 
-	struct platform_linux
-	{
-		static std::string const dynamic_library() noexcept
-		{
-			using namespace std::string_literals;
-			return "libvulkan.so.1";
-		}
-	};
+    struct platform_linux
+    {
+        static std::string const dynamic_library() noexcept
+        {
+            using namespace std::string_literals;
+            return "libvulkan.so.1";
+        }
+    };
 
     // some type defines
     struct instance_param_t
@@ -109,28 +109,28 @@ namespace vk
     using queue_create_info_t = std::vector<queue_info_t>;
 
 #if defined _WIN32
-	using platform_type = platform_windows;
+    using platform_type = platform_windows;
 #elif defined __linux
-	using platform_type = platform_linux;
+    using platform_type = platform_linux;
 #else
 #error Unknown platform!
 #endif
 
-	// forward declaration
-	template <typename T, typename TT, typename Base>
+    // forward declaration
+    template <typename T, typename TT, typename Base>
     class instance_extension;
 
-	template <typename ... Exts>
-	class instance;
+    template <typename ... Exts>
+    class instance;
 
-	template <typename T, typename TT, typename Base>
+    template <typename T, typename TT, typename Base>
     class device_extension;
 
-	template <typename ... Exts>
-	class device;
+    template <typename ... Exts>
+    class device;
 
-	template <typename T>
-	class object;
+    template <typename T>
+    class object;
 
-	class global_t;
+    class global_t;
 }

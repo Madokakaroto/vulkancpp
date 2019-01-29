@@ -14,8 +14,8 @@ namespace vk
         extension_properties_t                  extension_properties;
     };
 
-	namespace detail
-	{
+    namespace detail
+    {
         template <typename T, typename = void>
         struct has_physical_device : std::false_type {};
         template <typename T>
@@ -55,7 +55,7 @@ namespace vk
             decltype(std::declval<T>().extension_properties)>>> : std::true_type {};
         template <typename T>
         inline constexpr bool has_extension_properties_v = has_extension_properties<T>::value;
-	}
+    }
 
     inline static auto is_discrete_gpu() noexcept
     {

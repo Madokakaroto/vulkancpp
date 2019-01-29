@@ -2,6 +2,9 @@
 
 namespace vk
 {
+    // device core tag
+    struct device_core_t {};
+
     /// logical device
     template <typename T, typename TT, typename Base>
     using device_extension_alias = device_extension<T, TT, Base>;
@@ -48,9 +51,6 @@ namespace vk
             : device_with_extension(instance, device)
         {}
     };
-
-    // device core tag
-    struct device_core_t {};
 
     template <typename TT>
     class device_extension<device_core_t, TT, null_type>

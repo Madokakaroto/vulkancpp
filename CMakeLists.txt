@@ -19,25 +19,25 @@ find_package(range-v3 CONFIG REQUIRED)
 find_package(vulkan REQUIRED)
 
 # include_directories(
-#	${VULKANCPP_DIR}/src
-#	${Vulkan_INCLUDE_DIRS}
+#    ${VULKANCPP_DIR}/src
+#    ${Vulkan_INCLUDE_DIRS}
 # )
 
 set(VULKAN_CPP_HEADERS 
-	${VULKANCPP_DIR}/src/vulkancpp.hpp
-	${VULKANCPP_DIR}/src/vulkancpp_forward.hpp
-	${VULKANCPP_DIR}/src/application/application.hpp
-	${VULKANCPP_DIR}/src/application/platform.hpp
-	${VULKANCPP_DIR}/src/application/window.hpp
-	${VULKANCPP_DIR}/src/base/functional.hpp
-	${VULKANCPP_DIR}/src/base/mpl.hpp
-	${VULKANCPP_DIR}/src/core/device.hpp
-	${VULKANCPP_DIR}/src/core/function.hpp
-	${VULKANCPP_DIR}/src/core/global.hpp
-	${VULKANCPP_DIR}/src/core/instance.hpp
-	${VULKANCPP_DIR}/src/core/object.hpp
-	${VULKANCPP_DIR}/src/core/physical_device.hpp
-	${VULKANCPP_DIR}/src/extensions/khr.hpp
+    ${VULKANCPP_DIR}/src/vulkancpp.hpp
+    ${VULKANCPP_DIR}/src/vulkancpp_forward.hpp
+    ${VULKANCPP_DIR}/src/application/application.hpp
+    ${VULKANCPP_DIR}/src/application/platform.hpp
+    ${VULKANCPP_DIR}/src/application/window.hpp
+    ${VULKANCPP_DIR}/src/base/functional.hpp
+    ${VULKANCPP_DIR}/src/base/mpl.hpp
+    ${VULKANCPP_DIR}/src/core/device.hpp
+    ${VULKANCPP_DIR}/src/core/function.hpp
+    ${VULKANCPP_DIR}/src/core/global.hpp
+    ${VULKANCPP_DIR}/src/core/instance.hpp
+    ${VULKANCPP_DIR}/src/core/object.hpp
+    ${VULKANCPP_DIR}/src/core/physical_device.hpp
+    ${VULKANCPP_DIR}/src/extensions/khr.hpp
 )
 
 set(VULKANCPP_UNIT_TEST
@@ -47,8 +47,8 @@ set(VULKANCPP_UNIT_TEST
 add_library(vulkancpp INTERFACE)
 target_sources(vulkancpp INTERFACE ${VULKAN_CPP_HEADERS})
 target_include_directories(vulkancpp INTERFACE
-	${VULKANCPP_DIR}/src/ 
-	${Vulkan_INCLUDE_DIRS}
+    ${VULKANCPP_DIR}/src/ 
+    ${Vulkan_INCLUDE_DIRS}
 )
 
 add_executable(bk_test ${VULKANCPP_UNIT_TEST})
