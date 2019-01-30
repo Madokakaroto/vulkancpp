@@ -55,7 +55,7 @@
 namespace vk
 {
     // some constant
-    inline constexpr uint32_t invalid_queue_index = static_cast<uint32_t>(-1);
+    inline constexpr uint32_t invalid_index = static_cast<uint32_t>(-1);
 
     // some type defines
     using physical_device_t = VkPhysicalDevice;
@@ -65,6 +65,8 @@ namespace vk
     using queue_family_properties_t = VkQueueFamilyProperties;
     using extent_2d_t = VkExtent2D;
     using format_t = VkFormat;
+    using flags_t = VkFlags;
+    using image_usage_flags_t = VkImageUsageFlags;
 
     /// platform
     struct platform_windows
@@ -94,13 +96,13 @@ namespace vk
 
     struct queue_family_t
     {
-        uint32_t                    index;
-        queue_family_properties_t   properties;
+        uint32_t                    index = invalid_index;
+        queue_family_properties_t   properties = { 0 };
     };
 
     struct queue_info_t
     {
-        uint32_t                    family_index = invalid_queue_index;
+        uint32_t                    family_index = invalid_index;
         std::vector<float>          priorities;
     };
 

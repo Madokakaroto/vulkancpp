@@ -11,6 +11,8 @@ namespace vk
         using surface_format_t = VkSurfaceFormatKHR;
         using present_mode_t = VkPresentModeKHR;
         using color_space_t = VkColorSpaceKHR;
+        using surface_transform_flags_t = VkSurfaceTransformFlagBitsKHR;
+        using composite_alpha_flags_t = VkCompositeAlphaFlagBitsKHR;
 
         struct surface_properties_t
         {
@@ -70,7 +72,7 @@ namespace vk
         auto get_capabilities(physical_device_t device, khr::surface_t const& surface) const
         {
             khr::surface_capabilities_t surface_capabilities = { 0 };
-            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface.get_object(), &surface_capabilities);
+            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &surface_capabilities);
             return surface_capabilities;
         }
 
@@ -78,11 +80,11 @@ namespace vk
         {
             uint32_t count{ 0 };
             std::vector<khr::surface_format_t> surface_formats;
-            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface.get_object(), &count, nullptr);
+            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, nullptr);
             if (count > 0)
             {
                 surface_formats.resize(count);
-                vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface.get_object(), &count, surface_formats.data());
+                vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, surface_formats.data());
             }
             return surface_formats;
         }
@@ -91,11 +93,11 @@ namespace vk
         {
             uint32_t count{ 0 };
             std::vector<khr::present_mode_t> present_modes;
-            vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface.get_object(), &count, nullptr);
+            vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &count, nullptr);
             if (count > 0)
             {
                 present_modes.resize(count);
-                vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface.get_object(), &count, present_modes.data());
+                vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &count, present_modes.data());
             }
             return present_modes;
         }
@@ -103,7 +105,7 @@ namespace vk
         bool get_support(physical_device_t device, khr::surface_t const& surface, uint32_t queue_index) const
         {
             VkBool32 result;
-            vkGetPhysicalDeviceSurfaceSupportKHR(device, queue_index, surface.get_object(), &result);
+            vkGetPhysicalDeviceSurfaceSupportKHR(device, queue_index, surface, &result);
             return 0 != result;
         }
 
@@ -195,13 +197,35 @@ namespace vk
 
         struct swapchain_config_t
         {
-            uint32_t            present_image_count = 2;
-            extent_2d_t         present_image_size = { 0, 0 };
-            present_mode_t      present_mode = VK_PRESENT_MODE_FIFO_KHR;
-            surface_format_t    present_image_format = { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+            uint32_t                    present_image_count = 2;
+            extent_2d_t                 present_image_size = { 0, 0 };
+            present_mode_t              present_mode = VK_PRESENT_MODE_FIFO_KHR;
+            surface_format_t            present_image_format = { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+            image_usage_flags_t         present_image_usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            surface_transform_flags_t   surface_transform_flags = VK_SURFACE_TRANSFORM_FLAG_BITS_MAX_ENUM_KHR;
+            composite_alpha_flags_t     composite_alpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+            bool                        clipped = true;
         };
 
         using swapchain_t = object<VkSwapchainKHR>;
+
+        namespace detail
+        {
+            class swapchain_t
+            {
+            public:
+                swapchain_t(VkSwapchainKHR swapchain, std::function<void(VkSwapchainKHR)> deleter)
+                    : swapchain_(swapchain, std::move(deleter))
+                {
+                }
+
+            private:
+                object<VkSwapchainKHR>      swapchain_;
+                std::vector<VkImage>        swapchain_images_;
+                std::vector<VkFramebuffer>  swapchain_framebuffers_;
+            };
+        }
+
     }
 
     template <typename TT, typename Base>
@@ -229,13 +253,23 @@ namespace vk
                 VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,    // VkStructureType                  sType
                 nullptr,                                        // const void*                      pNext
                 0,                                              // VkSwapchainCreateFlagsKHR        flags
-                surface.get_object(),                           // VkSurfaceKHR                     surface
+                surface,                                        // VkSurfaceKHR                     surface
                 config.present_image_count,                     // uint32_t                         minImageCount
                 config.present_image_format.format,             // VkFormat                         imageFormat
                 config.present_image_format.colorSpace,         // VkColorSpaceKHR                  imageColorSpace
                 config.present_image_size,                      // VkExtent2D                       imageExtent
                 1,                                              // uint32_t                         imageArrayLayers
-
+                config.present_image_usage,                     // VkImageUsageFlags                imageUsage
+                // TODO ... when present queue and graphics queue are diffirent
+                VK_SHARING_MODE_EXCLUSIVE,                      // VkSharingMode                    imageSharingMode
+                0,                                              // uint32_t                         queueFamilyIndexCount
+                nullptr,                                        // const uint32_t*                  pQueueFamilyIndices
+                // TODO ....
+                config.surface_transform_flags,                 // VkSurfaceTransformFlagBitsKHR    preTransform
+                config.composite_alpha,                         // VkCompositeAlphaFlagBitsKHR      compositeAlpha
+                config.present_mode,                            // VkPresentModeKHR                 presentMode
+                static_cast<VkBool32>(config.clipped),          // VkBool32                         clipped
+                nullptr                                         // VkSwapchainKHR                   oldSwapchain
             };
 
             VkSwapchainKHR swapchain;

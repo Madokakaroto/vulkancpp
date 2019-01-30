@@ -22,21 +22,50 @@ namespace vk
         class queue_t
         {
         protected:
-            explicit queue_t(VkQueue queue, int family_index, int queue_index) : queue_(queue_) {}
+            queue_t(VkQueue queue, uint32_t family_index, uint32_t queue_index, float priority)
+                : queue_(queue) 
+                , family_index_(family_index)
+                , queue_index_(queue_index)
+                , priority_(priority)
+            {}
+
+            queue_t()
+                : queue_t(nullptr, -1, -1, 0,0f)
+            {}
 
         public:
+            ~queue_t() = default;
             queue_t(queue_t const&) = default;
             queue_t(queue_t&&) = default;
             queue_t& operator= (queue_t const&) = default;
             queue_t& operator= (queue_t&&) = default;
 
         public:
+            operator VkQueue() const noexcept
+            {
+                return queue_;
+            }
+
+            uint32_t family_index() const noexcept
+            {
+                return family_index_;
+            }
+
+            uint32_t queue_index() const noexcept
+            {
+                return queue_index_;
+            }
+
+            float priority() const noexcept
+            {
+                return priority_;
+            }
 
         private:
             VkQueue     queue_ = nullptr;
-            int         family_index_ = -1;
-            int         queue_index_ = -1;
-            float       priority = 0.0f;
+            uint32_t    family_index_ = invalid_index;
+            uint32_t    queue_index_ = invalid_index;
+            float       priority_ = 0.0f;
         };
 
     protected:
@@ -50,6 +79,9 @@ namespace vk
         device(Instance const& instance, VkDevice device)
             : device_with_extension(instance, device)
         {}
+
+    private:
+        std::vector<queue_t>        queues_;
     };
 
     template <typename TT>

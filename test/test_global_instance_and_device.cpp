@@ -58,22 +58,6 @@ void init_vulkan(vk::window_t& window)
             physical_device.graphics_queue_info = { queue_family.index, { 1.0f } };
             return true;
         });
-        // 5.4 select the physical device that support the desired format with a specific surface
-    }) | vk::physical_device_pipe([&instance, &surface, &swapchain_config](auto& physical_device) {
-        if (ranges::any_of(instance.get_formats(physical_device, surface), [](auto const& format)
-        {
-            return format.format == VK_FORMAT_B8G8R8A8_UNORM &&
-                format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-        }))
-        {
-            swapchain_config.present_image_format =
-            {
-                VK_FORMAT_B8G8R8A8_UNORM,
-                VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
-            };
-            return true;
-        }
-        return false;
     });
 
     // 6. select physical device
